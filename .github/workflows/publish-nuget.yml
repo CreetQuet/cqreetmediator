@@ -26,20 +26,37 @@ jobs:
       - name: Run tests
         run: dotnet test --configuration Release --no-build --verbosity normal
 
+      - name: Extract version from release tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
       - name: Pack CQReetMediator
-        run: dotnet pack src/CQReetMediator/CQReetMediator.csproj \
-          --configuration Release --no-build -o ./artifacts
+        run: |
+          dotnet pack src/CQReetMediator/CQReetMediator.csproj \
+            --configuration Release \
+            --no-build \
+            -p:PackageVersion=${{ steps.version.outputs.VERSION }} \
+            -o ./artifacts
 
       - name: Pack CQReetMediator.Abstractions
-        run: dotnet pack src/CQReetMediator.Abstractions/CQReetMediator.Abstractions.csproj \
-          --configuration Release --no-build -o ./artifacts
+        run: |
+          dotnet pack src/CQReetMediator.Abstractions/CQReetMediator.Abstractions.csproj \
+            --configuration Release \
+            --no-build \
+            -p:PackageVersion=${{ steps.version.outputs.VERSION }} \
+            -o ./artifacts
 
       - name: Pack CQReetMediator.DependencyInjection
-        run: dotnet pack src/CQReetMediator.DependencyInjection/CQReetMediator.DependencyInjection.csproj \
-          --configuration Release --no-build -o ./artifacts
+        run: |
+          dotnet pack src/CQReetMediator.DependencyInjection/CQReetMediator.DependencyInjection.csproj \
+            --configuration Release \
+            --no-build \
+            -p:PackageVersion=${{ steps.version.outputs.VERSION }} \
+            -o ./artifacts
 
       - name: Publish to NuGet
-        run: dotnet nuget push "./artifacts/*.nupkg" \
-          --api-key ${{ secrets.NUGET_API_KEY }} \
-          --source https://api.nuget.org/v3/index.json \
-          --skip-duplicate
+        run: |
+          dotnet nuget push "./artifacts/*.nupkg" \
+            --api-key ${{ secrets.NUGET_API_KEY }} \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
