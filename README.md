@@ -76,12 +76,13 @@ public sealed class CreateUserCommandHandler
 ```csharp
 services.AddCQReetMediator(typeof(Program).Assembly);
 ```
+
 You must pass the assemblies containing your command, query, notification handlers, and pipeline behaviors.
 
 ### 4. Use It
 
 ```csharp
-var id = await mediator.SendAsync(new CreateUserCommand("Alice"));
+var id = await mediator.Send(new CreateUserCommand("Alice"));
 ```
 
 ---
@@ -91,10 +92,10 @@ var id = await mediator.SendAsync(new CreateUserCommand("Alice"));
 Pipeline behaviors allow injecting cross-cutting logic.
 
 ```csharp
-public sealed class LoggingBehavior : IPipelineBehavior {
-    public async ValueTask<object?> HandleAsync(
-        object request,
-        PipelineDelegate next,
+public sealed class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse> {
+    public async ValueTask<TResponse> HandleAsync(
+        TRequest request,
+        Func<ValueTask<TResponse>> next,
         CancellationToken ct
     ){
         Console.WriteLine($"Start: {request.GetType().Name}");
@@ -113,38 +114,46 @@ public sealed class LoggingBehavior : IPipelineBehavior {
 public sealed record UserCreatedEvent(Guid UserId) : INotification;
 
 public sealed class SendEmailOnUserCreated : INotificationHandler<UserCreatedEvent> {
-    public ValueTask HandleAsync(UserCreatedEvent notification, CancellationToken ct) {
+    public Task HandleAsync(UserCreatedEvent notification, CancellationToken ct) {
         Console.WriteLine($"Email sent to user {notification.UserId}");
-        return ValueTask.CompletedTask;
+        return Task.CompletedTask;
     }
 }
 ```
 
 All `INotificationHandler<T>` implementations are automatically registered through reflection.
-The mediator resolves them using `IEnumerable<INotificationHandler<T>>`, so multiple handlers are supported out of the box.
-
+The mediator resolves them using `IEnumerable<INotificationHandler<T>>`, so multiple handlers are supported out of the
+box.
 
 Publish:
 
 ```csharp
 await mediator.PublishAsync(new UserCreatedEvent(id));
 ```
+
 `PublishAsync` will invoke *all registered notification handlers* for the event type.
 
 ---
 
-## 🧪 Testing
+## 🧪 Testing and Benchmark
 
 Run ALL tests:
 
 ```bash
-dotnet test  --verbosity normal --configuration Release
+dotnet test
+```
+
+Run All Benchmarks:
+
+```bash
+dotnet run -c Release
 ```
 
 Projects included:
 
 * `CQReetMediator.Tests`
 * `CQReetMediator.DependencyInjection.Tests`
+* `CQReetMediator.Benchmarks`
 
 ---
 
@@ -157,6 +166,7 @@ Projects included:
   CQReetMediator.DependencyInjection/
   CQReetMediator.Tests/
   CQReetMediator.DependencyInjection.Tests/
+  CQReetMediator.Benchmarks/
 ```
 
 ---

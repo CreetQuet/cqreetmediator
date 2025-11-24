@@ -1,64 +1,63 @@
-﻿using System.Reflection;
+﻿using Microsoft.Extensions.DependencyInjection;
+using System.Reflection;
 using CQReetMediator.Abstractions;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace CQReetMediator.DependencyInjection;
 
 public static class ServiceCollectionExtensions {
-    public static IServiceCollection AddCQReetMediator(this IServiceCollection services, params Assembly[] assemblies) {
-        services.AddSingleton<HandlerRegistry>();
-        services.AddSingleton<PipelineExecutor>();
-        services.AddSingleton<NotificationPublisher>();
-        services.AddSingleton<IMediator, Mediator>();
-
+    public static IServiceCollection AddCQReetMediator(
+        this IServiceCollection services,
+        params Assembly[] assemblies) {
         RegisterHandlers(services, assemblies);
-        RegisterNotificationHandlers(services, assemblies);
-        RegisterPipelineBehaviors(services, assemblies);
+        RegisterPipelines(services, assemblies);
+
+        services.AddSingleton<IMediator>(sp =>
+            new Mediator(
+                type => sp.GetService(type),
+                type => sp.GetServices(type)
+            )
+        );
 
         return services;
     }
 
     private static void RegisterHandlers(IServiceCollection services, Assembly[] assemblies) {
-        var handlers = assemblies
-            .SelectMany(a => a.GetTypes())
-            .Where(t => !t.IsInterface && !t.IsAbstract)
-            .SelectMany(t => t.GetInterfaces()
-                .Where(i =>
-                    i.IsGenericType &&
-                    (i.GetGenericTypeDefinition() == typeof(ICommandHandler<,>) ||
-                     i.GetGenericTypeDefinition() == typeof(IQueryHandler<,>)))
-                .Select(i => new { Handler = t, Interface = i }));
+        foreach (var type in assemblies.SelectMany(a => a.GetTypes())) {
+            if (type.IsAbstract || type.IsInterface)
+                continue;
 
-        foreach (var h in handlers)
-            services.AddScoped(h.Interface, h.Handler);
-    }
+            foreach (var i in type.GetInterfaces()) {
+                if (!i.IsGenericType)
+                    continue;
 
-    private static void RegisterNotificationHandlers(IServiceCollection services, Assembly[] assemblies)
-    {
-        var handlers = assemblies
-            .SelectMany(a => a.GetTypes())
-            .Where(t => !t.IsInterface && !t.IsAbstract)
-            .SelectMany(t => t.GetInterfaces()
-                .Where(i =>
-                    i.IsGenericType &&
-                    i.GetGenericTypeDefinition() == typeof(INotificationHandler<>))
-                .Select(i => new { Handler = t, Interface = i }));
+                var def = i.GetGenericTypeDefinition();
 
-        foreach (var h in handlers)
-            services.AddScoped(h.Interface, h.Handler);
+                if (def == typeof(IRequestHandler<,>) ||
+                    def == typeof(IAsyncRequestHandler<,>) ||
+                    def == typeof(INotificationHandler<>)) {
+                    services.AddScoped(i, type);
+                }
+            }
+        }
     }
 
 
-    private static void RegisterPipelineBehaviors(IServiceCollection services, Assembly[] assemblies)
-    {
-        var behaviors = assemblies
-            .SelectMany(a => a.GetTypes())
-            .Where(t =>
-                !t.IsInterface &&
-                !t.IsAbstract &&
-                typeof(IPipelineBehavior).IsAssignableFrom(t));
+    private static void RegisterPipelines(IServiceCollection services, Assembly[] assemblies) {
+        foreach (var t in assemblies.SelectMany(a => a.GetTypes())) {
+            if (t.IsAbstract || t.IsInterface)
+                continue;
 
-        foreach (var b in behaviors)
-            services.AddScoped(typeof(IPipelineBehavior), b);
+            foreach (var i in t.GetInterfaces()) {
+                if (!i.IsGenericType)
+                    continue;
+
+                var def = i.GetGenericTypeDefinition();
+
+                if (def == typeof(IPipelineBehavior<,>) ||
+                    def == typeof(IAsyncPipelineBehavior<,>)) {
+                    services.AddScoped(i, t);
+                }
+            }
+        }
     }
 }

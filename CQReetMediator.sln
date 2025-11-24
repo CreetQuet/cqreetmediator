@@ -10,6 +10,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CQReetMediator.Tests", "src
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CQReetMediator.DependencyInjection.Tests", "src\CQReetMediator.DependencyInjection.Tests\CQReetMediator.DependencyInjection.Tests.csproj", "{B1346E36-884E-43B3-8751-400F592C8A8D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CQReetMediator.Benchmarks", "src\CQReetMediator.Benchmarks\CQReetMediator.Benchmarks.csproj", "{58D59128-B832-4BCF-9E8A-6176C5E8D0DE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -36,5 +38,9 @@ Global
 		{B1346E36-884E-43B3-8751-400F592C8A8D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B1346E36-884E-43B3-8751-400F592C8A8D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B1346E36-884E-43B3-8751-400F592C8A8D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{58D59128-B832-4BCF-9E8A-6176C5E8D0DE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{58D59128-B832-4BCF-9E8A-6176C5E8D0DE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{58D59128-B832-4BCF-9E8A-6176C5E8D0DE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{58D59128-B832-4BCF-9E8A-6176C5E8D0DE}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
