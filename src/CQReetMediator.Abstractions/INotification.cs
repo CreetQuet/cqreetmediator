@@ -1,2 +1,6 @@
 ﻿namespace CQReetMediator.Abstractions;
-public interface INotification { }
+
+/// <summary>
+/// Represents a domain notification/event in the Mediator pattern
+/// </summary>
+public interface INotification;

@@ -1,5 +1,4 @@
-﻿using System.Reflection;
-using CQReetMediator.Abstractions;
+﻿using CQReetMediator.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -15,35 +14,31 @@ public sealed class ServiceCollectionTests {
     public void AddCQReetMediator_Should_Register_Core_Services() {
         var services = new ServiceCollection();
 
-        services.AddCQReetMediator(typeof(TestCommandHandler).Assembly);
+        services.AddCQReetMediator(typeof(TestCommand).Assembly);
 
         var provider = services.BuildServiceProvider();
-
-        Assert.NotNull(provider.GetService<HandlerRegistry>());
-        Assert.NotNull(provider.GetService<PipelineExecutor>());
-        Assert.NotNull(provider.GetService<NotificationPublisher>());
         Assert.NotNull(provider.GetService<IMediator>());
 
         Assert.Same(
             provider.GetService<IMediator>(),
             provider.GetService<IMediator>()); // singleton
     }
-    
+
     [Fact]
     public void AddCQReetMediator_Should_Register_Command_And_Query_Handlers() {
         var services = new ServiceCollection();
 
-        services.AddCQReetMediator(typeof(TestCommandHandler).Assembly);
+        services.AddCQReetMediator(typeof(TestCommand).Assembly);
 
         var provider = services.BuildServiceProvider();
 
-        var commandHandler = provider.GetService<ICommandHandler<TestCommand, string>>();
-        var queryHandler = provider.GetService<IQueryHandler<TestQuery, int>>();
+        var commandHandler = provider.GetService<IRequestHandler<TestCommand, string>>();
+        var queryHandler = provider.GetService<IRequestHandler<TestQuery, int>>();
 
         Assert.NotNull(commandHandler);
         Assert.NotNull(queryHandler);
     }
-    
+
     [Fact]
     public void AddCQReetMediator_Should_Register_Notification_Handlers() {
         var services = new ServiceCollection();
@@ -53,7 +48,7 @@ public sealed class ServiceCollectionTests {
         var provider = services.BuildServiceProvider();
 
         var handlers = provider.GetService<IEnumerable<INotificationHandler<TestEvent>>>();
-        
+
         Assert.NotNull(handlers);
         Assert.Equal(2, handlers.Count());
     }
@@ -62,28 +57,27 @@ public sealed class ServiceCollectionTests {
     public void AddCQReetMediator_Should_Register_Pipeline_Behaviors() {
         var services = new ServiceCollection();
 
-        services.AddCQReetMediator(typeof(TestPipeline).Assembly);
+        services.AddCQReetMediator(typeof(PipelineTestCommand).Assembly);
 
         var provider = services.BuildServiceProvider();
 
-        var behaviors = provider.GetService<IEnumerable<IPipelineBehavior>>();
+        var behaviors = provider.GetService<IEnumerable<IPipelineBehavior<PipelineTestCommand, bool>>>();
 
         Assert.NotNull(behaviors);
         Assert.Single(behaviors);
     }
-    
+
     [Fact]
     public async Task Mediator_Should_Execute_Command_Through_DI() {
         var services = new ServiceCollection();
 
-        services.AddCQReetMediator(typeof(TestCommandHandler).Assembly);
+        services.AddCQReetMediator(typeof(TestCommand).Assembly);
 
         var provider = services.BuildServiceProvider();
 
         var mediator = provider.GetRequiredService<IMediator>();
 
-        string result = await mediator.SendAsync(new TestCommand("Hello"));
-
+        var result = await mediator.SendAsync(new TestCommand("Hello"));
         Assert.Equal("Handled: Hello", result);
     }
 
@@ -102,7 +96,7 @@ public sealed class ServiceCollectionTests {
         var mediator = provider.GetRequiredService<IMediator>();
 
         var eventInstance = new TestEvent("Ping");
-        
+
         var handlers = provider.GetRequiredService<IEnumerable<INotificationHandler<TestEvent>>>();
 
         var a = handlers.OfType<NotificationAHandler>().First();
@@ -130,7 +124,7 @@ public sealed class ServiceCollectionTests {
 
         await mediator.SendAsync(new PipelineTestCommand());
 
-        var pipeline = provider.GetRequiredService<IEnumerable<IPipelineBehavior>>()
+        var pipeline = provider.GetRequiredService<IEnumerable<IPipelineBehavior<PipelineTestCommand, bool>>>()
             .OfType<TestPipeline>()
             .First();
 
@@ -144,16 +138,20 @@ public sealed class ServiceCollectionTests {
     // ──────────────────────────────────────────────
     //
 
+    public interface ICommand<TResponse> : IRequest<TResponse> { }
+
+    public interface IQuery<TResponse> : IRequest<TResponse> { }
+
     public sealed record TestCommand(string Message) : ICommand<string>;
 
-    public sealed class TestCommandHandler : ICommandHandler<TestCommand, string> {
+    public sealed class TestCommandHandler : IRequestHandler<TestCommand, string> {
         public ValueTask<string> HandleAsync(TestCommand command, CancellationToken ct)
             => ValueTask.FromResult($"Handled: {command.Message}");
     }
 
     public sealed record TestQuery(string Query) : IQuery<int>;
 
-    public sealed class TestQueryHandler : IQueryHandler<TestQuery, int> {
+    public sealed class TestQueryHandler : IRequestHandler<TestQuery, int> {
         public ValueTask<int> HandleAsync(TestQuery request, CancellationToken ct)
             => ValueTask.FromResult(42);
     }
@@ -180,17 +178,21 @@ public sealed class ServiceCollectionTests {
 
     public sealed record PipelineTestCommand : ICommand<bool>;
 
-    public sealed class PipelineTestHandler : ICommandHandler<PipelineTestCommand, bool> {
+    public sealed class PipelineTestHandler : IRequestHandler<PipelineTestCommand, bool> {
         public ValueTask<bool> HandleAsync(PipelineTestCommand cmd, CancellationToken ct)
             => ValueTask.FromResult(true);
     }
 
-    public sealed class TestPipeline : IPipelineBehavior {
+    public sealed class TestPipeline : IPipelineBehavior<PipelineTestCommand, bool> {
         public bool Called { get; private set; }
 
-        public async ValueTask<object?> InvokeAsync(object request, Func<ValueTask<object?>> next, CancellationToken ct) {
+        public ValueTask<bool> InvokeAsync(
+            PipelineTestCommand request,
+            Func<ValueTask<bool>> next,
+            CancellationToken ct) {
             Called = true;
-            return await next();
+            return next();
         }
     }
+
 }

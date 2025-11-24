@@ -4,8 +4,14 @@
         <TargetFramework>net9.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <IsPackable>true</IsPackable>
         <Authors>CreetQuet</Authors>
+        <Description>The CQReetMediator is an ultra-light, high-performance CQRS Mediator library for .NET 9</Description>
         <Version>1.0.0</Version>
+        <PackageProjectUrl>https://github.com/CreetStack/cqreetmediator</PackageProjectUrl>
+        <PackageLicenseUrl>https://github.com/CreetStack/cqreetmediator/blob/main/LICENSE</PackageLicenseUrl>
+        <RepositoryUrl>https://github.com/CreetStack/cqreetmediator</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
     </PropertyGroup>
 
     <ItemGroup>
