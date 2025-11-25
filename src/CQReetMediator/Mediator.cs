@@ -29,8 +29,11 @@ namespace CQReetMediator;
 /// </para>
 /// </remarks>
 public sealed class Mediator : IMediator {
-    private readonly Func<Type, object?> _single;
-    private readonly Func<Type, IEnumerable<object>> _multiple;
+    private readonly IServiceFactory _factory;
+
+    public Mediator(IServiceFactory factory) {
+        _factory = factory;
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Mediator"/> class.
@@ -39,12 +42,8 @@ public sealed class Mediator : IMediator {
     /// <param name="multipleResolver">The service provider used to resolve handlers and behaviors</param>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="singleResolver"/> is null</exception>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="multipleResolver"/> is null</exception>
-    public Mediator(Func<Type, object?> singleResolver, Func<Type, IEnumerable<object>> multipleResolver) {
-        _single = singleResolver ?? throw new ArgumentNullException(nameof(singleResolver));
-        _multiple = multipleResolver ?? throw new ArgumentNullException(nameof(multipleResolver));
-    }
-
     private readonly static ConcurrentDictionary<Type, Delegate> ValueHandlerInvokerCache = new();
+
     private readonly static ConcurrentDictionary<Type, Delegate> TaskHandlerInvokerCache = new();
 
     private readonly static ConcurrentDictionary<Type, Delegate> ValuePipelineInvokerCache = new();
@@ -84,15 +83,18 @@ public sealed class Mediator : IMediator {
         var requestType = request.GetType();
 
         var valueHandlerInterface = typeof(IRequestHandler<,>).MakeGenericType(requestType, typeof(TResponse));
-        var valueHandler = _single(valueHandlerInterface);
+        var valueHandler = _factory.Resolve(valueHandlerInterface);
 
         if (valueHandler != null) {
             var inv = (Func<object, object, CancellationToken, ValueTask<TResponse>>)
                 ValueHandlerInvokerCache.GetOrAdd(valueHandlerInterface,
                     _ => BuildValueHandlerInvoker<TResponse>(valueHandlerInterface));
 
-            var pipelineInterface = typeof(IPipelineBehavior<,>).MakeGenericType(requestType, typeof(TResponse));
-            var pipelines = _multiple(pipelineInterface);
+            var pipelineInterface =
+                typeof(IPipelineBehavior<,>)
+                    .MakeGenericType(requestType, typeof(TResponse));
+
+            var pipelines = _factory.ResolveAll(pipelineInterface);
 
             if (!pipelines.Any()) {
                 return inv(valueHandler, request, ct);
@@ -115,17 +117,20 @@ public sealed class Mediator : IMediator {
         }
 
         var taskHandlerInterface = typeof(IAsyncRequestHandler<,>).MakeGenericType(requestType, typeof(TResponse));
-        var taskHandler = _single(taskHandlerInterface);
+        var taskHandler = _factory.Resolve(taskHandlerInterface);
 
         if (taskHandler != null) {
             var invTask = (Func<object, object, CancellationToken, Task<TResponse>>)
                 TaskHandlerInvokerCache.GetOrAdd(taskHandlerInterface,
                     _ => BuildTaskHandlerInvoker<TResponse>(taskHandlerInterface));
 
-            var taskPipelineInterface = typeof(IAsyncPipelineBehavior<,>).MakeGenericType(requestType, typeof(TResponse));
-            var pipelines = _multiple(taskPipelineInterface);
+            var taskPipelineInterface =
+                typeof(IAsyncPipelineBehavior<,>)
+                    .MakeGenericType(requestType, typeof(TResponse));
 
-            if (pipelines.Count() == 0) {
+            var pipelines = _factory.ResolveAll(taskPipelineInterface);
+
+            if (!pipelines.Any()) {
                 var task = invTask(taskHandler, request, ct);
                 return new ValueTask<TResponse>(task);
             }
@@ -181,15 +186,18 @@ public sealed class Mediator : IMediator {
         var requestType = request.GetType();
 
         var taskHandlerInterface = typeof(IAsyncRequestHandler<,>).MakeGenericType(requestType, typeof(TResponse));
-        var taskHandler = _single(taskHandlerInterface);
+        var taskHandler = _factory.Resolve(taskHandlerInterface);
 
         if (taskHandler != null) {
             var invTask = (Func<object, object, CancellationToken, Task<TResponse>>)
                 TaskHandlerInvokerCache.GetOrAdd(taskHandlerInterface,
                     _ => BuildTaskHandlerInvoker<TResponse>(taskHandlerInterface));
 
-            var taskPipelineInterface = typeof(IAsyncPipelineBehavior<,>).MakeGenericType(requestType, typeof(TResponse));
-            var pipelines = _multiple(taskPipelineInterface);
+            var taskPipelineInterface =
+                typeof(IAsyncPipelineBehavior<,>)
+                    .MakeGenericType(requestType, typeof(TResponse));
+
+            var pipelines = _factory.ResolveAll(taskPipelineInterface);
 
             if (!pipelines.Any()) {
                 return await invTask(taskHandler, request, ct).ConfigureAwait(false);
@@ -207,28 +215,22 @@ public sealed class Mediator : IMediator {
                 nextTask = () => pipelineInvokerDelegate(pipelineInst, request, outerNext, ct);
             }
 
-            foreach (var pipelineInst in pipelines) {
-                var pipelineInvokerDelegate = (Func<object, object, Func<Task<TResponse>>, CancellationToken, Task<TResponse>>)
-                    TaskPipelineInvokerCache.GetOrAdd(pipelineInst.GetType(),
-                        _ => BuildTaskPipelineInvoker<TResponse>(pipelineInst.GetType()));
-
-                var outerNext = nextTask;
-                nextTask = () => pipelineInvokerDelegate(pipelineInst, request, outerNext, ct);
-            }
-
             return await nextTask().ConfigureAwait(false);
         }
 
         var valueHandlerInterface = typeof(IRequestHandler<,>).MakeGenericType(requestType, typeof(TResponse));
-        var valueHandler = _single(valueHandlerInterface);
+        var valueHandler = _factory.Resolve(valueHandlerInterface);
 
         if (valueHandler != null) {
             var inv = (Func<object, object, CancellationToken, ValueTask<TResponse>>)
                 ValueHandlerInvokerCache.GetOrAdd(valueHandlerInterface,
                     _ => BuildValueHandlerInvoker<TResponse>(valueHandlerInterface));
 
-            var pipelineInterface = typeof(IPipelineBehavior<,>).MakeGenericType(requestType, typeof(TResponse));
-            var pipelines = _multiple(pipelineInterface);
+            var pipelineInterface =
+                typeof(IPipelineBehavior<,>)
+                    .MakeGenericType(requestType, typeof(TResponse));
+
+            var pipelines = _factory.ResolveAll(pipelineInterface);
 
             if (!pipelines.Any()) {
                 var vt = inv(valueHandler, request, ct);
@@ -284,9 +286,10 @@ public sealed class Mediator : IMediator {
         if (notification is null) throw new ArgumentNullException(nameof(notification));
 
         var notifType = notification.GetType();
-        var handlerInterface = typeof(INotificationHandler<>).MakeGenericType(notifType);
+        var handlerInterface = typeof(IEnumerable<>)
+            .MakeGenericType(typeof(INotificationHandler<>).MakeGenericType(notifType));
 
-        var handlers = _multiple(handlerInterface);
+        var handlers = (IEnumerable<object>?)_factory.Resolve(handlerInterface) ?? [];
         if (!handlers.Any()) return;
 
         var invoker = (Func<object, object, CancellationToken, Task>)

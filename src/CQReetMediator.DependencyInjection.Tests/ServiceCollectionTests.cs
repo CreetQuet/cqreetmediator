@@ -77,7 +77,7 @@ public sealed class ServiceCollectionTests {
 
         var mediator = provider.GetRequiredService<IMediator>();
 
-        var result = await mediator.SendAsync(new TestCommand("Hello"));
+        var result = await mediator.Send(new TestCommand("Hello"));
         Assert.Equal("Handled: Hello", result);
     }
 
@@ -117,20 +117,23 @@ public sealed class ServiceCollectionTests {
     public async Task Mediator_Should_Execute_Pipeline_Behaviors() {
         var services = new ServiceCollection();
 
-        services.AddCQReetMediator(typeof(TestPipeline).Assembly);
+        services.AddCQReetMediator(typeof(PipelineTestCommand).Assembly);
 
         var provider = services.BuildServiceProvider();
         var mediator = provider.GetRequiredService<IMediator>();
 
-        await mediator.SendAsync(new PipelineTestCommand());
+        await mediator.Send(new PipelineTestCommand());
 
-        var pipeline = provider.GetRequiredService<IEnumerable<IPipelineBehavior<PipelineTestCommand, bool>>>()
-            .OfType<TestPipeline>()
-            .First();
+        var pipeline = provider
+            .GetRequiredService<IEnumerable<IPipelineBehavior<PipelineTestCommand, bool>>>()
+            .OfType<TestPipeline<PipelineTestCommand, bool>>()
+            .FirstOrDefault();
 
-
+        Assert.NotNull(pipeline);
         Assert.True(pipeline.Called);
+
     }
+
 
     //
     // ──────────────────────────────────────────────
@@ -183,13 +186,11 @@ public sealed class ServiceCollectionTests {
             => ValueTask.FromResult(true);
     }
 
-    public sealed class TestPipeline : IPipelineBehavior<PipelineTestCommand, bool> {
+    public sealed class TestPipeline<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
+        where TRequest : IRequest<TResponse> {
         public bool Called { get; private set; }
 
-        public ValueTask<bool> InvokeAsync(
-            PipelineTestCommand request,
-            Func<ValueTask<bool>> next,
-            CancellationToken ct) {
+        public ValueTask<TResponse> InvokeAsync(TRequest request, Func<ValueTask<TResponse>> next, CancellationToken ct) {
             Called = true;
             return next();
         }
