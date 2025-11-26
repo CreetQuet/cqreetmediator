@@ -13,7 +13,7 @@ public interface IPipelineBehavior<in TRequest, TResponse> where TRequest : IReq
     /// <param name="next">The next delegate in the pipeline</param>
     /// <param name="ct">Cancellation token</param>
     /// <returns>A ValueTask containing the response</returns>
-    ValueTask<TResponse> InvokeAsync(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken ct);
+    ValueTask<TResponse?> InvokeAsync(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken ct);
 }
 
 /// <summary>
@@ -29,5 +29,5 @@ public interface IAsyncPipelineBehavior<in TRequest, TResponse> where TRequest :
     /// <param name="next">The next delegate in the pipeline</param>
     /// <param name="ct">Cancellation token</param>
     /// <returns>A Task containing the response</returns>
-    Task<TResponse> InvokeAsync(TRequest request, RequestHandlerDelegateAsync<TResponse> next, CancellationToken ct);
+    Task<TResponse?> InvokeAsync(TRequest request, RequestHandlerDelegateAsync<TResponse> next, CancellationToken ct);
 }

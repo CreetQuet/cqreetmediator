@@ -26,7 +26,7 @@ public class ServiceCollectionTests {
         var provider = services.BuildServiceProvider();
         var mediator = provider.GetRequiredService<IMediator>();
 
-        string result = await mediator.Send(new SyncRequest("Hi"));
+        var result = await mediator.Send(new SyncRequest("Hi"));
 
         Assert.Equal("Sync: Hi", result);
     }
@@ -40,7 +40,7 @@ public class ServiceCollectionTests {
         var provider = services.BuildServiceProvider();
         var mediator = provider.GetRequiredService<IMediator>();
 
-        string result = await mediator.SendAsync(new AsyncRequest("World"));
+        var result = await mediator.SendAsync(new AsyncRequest("World"));
 
         Assert.Equal("Async: World", result);
     }

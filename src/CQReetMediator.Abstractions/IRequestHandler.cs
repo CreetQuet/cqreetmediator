@@ -12,7 +12,7 @@ public interface IRequestHandler<in TRequest, TResponse> where TRequest : IReque
     /// <param name="request">The request to handle</param>
     /// <param name="ct">Cancellation token</param>
     /// <returns>A ValueTask containing the response</returns>
-    ValueTask<TResponse> HandleAsync(TRequest request, CancellationToken ct);
+    ValueTask<TResponse?> HandleAsync(TRequest request, CancellationToken ct);
 }
 
 /// <summary>
@@ -27,5 +27,5 @@ public interface IAsyncRequestHandler<in TRequest, TResponse> where TRequest : I
     /// <param name="request">The request to handle</param>
     /// <param name="ct">Cancellation token</param>
     /// <returns>A Task containing the response</returns>
-    Task<TResponse> HandleAsync(TRequest request, CancellationToken ct);
+    Task<TResponse?> HandleAsync(TRequest request, CancellationToken ct);
 }

@@ -68,7 +68,7 @@ public interface IMediator {
     /// var createdId = await mediator.Send(new CreateProductCommand { Name = "Laptop" });
     /// </code>
     /// </example>
-    ValueTask<TResponse> Send<TResponse>(IRequest<TResponse> request, CancellationToken ct = default);
+    ValueTask<TResponse?> Send<TResponse>(IRequest<TResponse> request, CancellationToken ct = default);
 
     /// <summary>
     /// Sends a request with return value asynchronously using Task for I/O-intensive operations
@@ -107,7 +107,7 @@ public interface IMediator {
     /// var result = await mediator.SendAsync(new ProcessPaymentCommand { Amount = 100.00m });
     /// </code>
     /// </example>
-    Task<TResponse> SendAsync<TResponse>(IRequest<TResponse> request, CancellationToken ct = default);
+    Task<TResponse?> SendAsync<TResponse>(IRequest<TResponse> request, CancellationToken ct = default);
 
     /// <summary>
     /// Publishes a notification to all registered handlers asynchronously

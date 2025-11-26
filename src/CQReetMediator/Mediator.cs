@@ -30,7 +30,7 @@ public class Mediator : IMediator {
     /// <returns>A <see cref="ValueTask{TResponse}"/> representing the result of the operation.</returns>
     /// <exception cref="ArgumentNullException">Thrown if the request is null.</exception>
     /// <exception cref="InvalidOperationException">Thrown if no handler is registered for the request type.</exception>
-    public ValueTask<TResponse> Send<TResponse>(IRequest<TResponse> request, CancellationToken ct = default) {
+    public ValueTask<TResponse?> Send<TResponse>(IRequest<TResponse> request, CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(request);
         var wrapper = _registry.GetRequestWrapper<TResponse>(request.GetType());
         return wrapper.Handle(request, _serviceProvider, ct);
@@ -46,7 +46,7 @@ public class Mediator : IMediator {
     /// <returns>A <see cref="Task{TResponse}"/> representing the result of the operation.</returns>
     /// <exception cref="ArgumentNullException">Thrown if the request is null.</exception>
     /// <exception cref="InvalidOperationException">Thrown if no handler is registered for the request type.</exception>
-    public Task<TResponse> SendAsync<TResponse>(IRequest<TResponse> request, CancellationToken ct = default) {
+    public Task<TResponse?> SendAsync<TResponse>(IRequest<TResponse> request, CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(request);
         var wrapper = _registry.GetAsyncRequestWrapper<TResponse>(request.GetType());
         return wrapper.Handle(request, _serviceProvider, ct);

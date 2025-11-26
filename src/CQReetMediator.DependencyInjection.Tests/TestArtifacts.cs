@@ -5,14 +5,14 @@ namespace CQReetMediator.DependencyInjection.Tests;
 public record SyncRequest(string Msg) : IRequest<string>;
 
 public class SyncHandler : IRequestHandler<SyncRequest, string> {
-    public ValueTask<string> HandleAsync(SyncRequest request, CancellationToken ct) 
+    public ValueTask<string?> HandleAsync(SyncRequest request, CancellationToken ct) 
         => new($"Sync: {request.Msg}");
 }
 
 public record AsyncRequest(string Msg) : IRequest<string>;
 
 public class AsyncHandler : IAsyncRequestHandler<AsyncRequest, string> {
-    public Task<string> HandleAsync(AsyncRequest request, CancellationToken ct) 
+    public Task<string?> HandleAsync(AsyncRequest request, CancellationToken ct) 
         => Task.FromResult($"Async: {request.Msg}");
 }
 
@@ -48,7 +48,7 @@ public class PipelineSpy {
 
 public class TestSpyPipeline<TRequest, TResponse>(PipelineSpy spy) : IPipelineBehavior<TRequest, TResponse>
     where TRequest : IRequest<TResponse> {
-    public async ValueTask<TResponse> InvokeAsync(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken ct) {
+    public async ValueTask<TResponse?> InvokeAsync(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken ct) {
         spy.WasCalled = true;
         return await next();
     }
@@ -56,7 +56,7 @@ public class TestSpyPipeline<TRequest, TResponse>(PipelineSpy spy) : IPipelineBe
 
 public class TestSpyPipelineAsync<TRequest, TResponse>(PipelineSpy spy) : IAsyncPipelineBehavior<TRequest, TResponse>
     where TRequest : IRequest<TResponse> {
-    public async Task<TResponse> InvokeAsync(TRequest request, RequestHandlerDelegateAsync<TResponse> next, CancellationToken ct) {
+    public async Task<TResponse?> InvokeAsync(TRequest request, RequestHandlerDelegateAsync<TResponse> next, CancellationToken ct) {
         spy.WasCalled = true;
         return await next();
     }

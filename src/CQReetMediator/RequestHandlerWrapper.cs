@@ -19,7 +19,7 @@ public class RequestWrapper<TRequest, TResponse> : RequestWrapperBase<TResponse>
     /// <param name="ct">The cancellation token.</param>
     /// <returns>A <see cref="ValueTask{TResponse}"/> containing the response.</returns>
     /// <exception cref="InvalidOperationException">Thrown if the required handler is not found in the container.</exception>
-    public override ValueTask<TResponse> Handle(
+    public override ValueTask<TResponse?> Handle(
         object request,
         IServiceProvider provider,
         CancellationToken ct
@@ -49,7 +49,7 @@ public class RequestWrapper<TRequest, TResponse> : RequestWrapperBase<TResponse>
                 var next = executionPlan;
                 executionPlan = () => {
                     var taskResponse = behavior.InvokeAsync(typedRequest, () => next().AsTask(), ct);
-                    return new ValueTask<TResponse>(taskResponse);
+                    return new ValueTask<TResponse?>(taskResponse);
                 };
             }
         } else if (hasAsync && asyncBehaviorsObj is IEnumerable<IAsyncPipelineBehavior<TRequest, TResponse>> asyncEnum) {
@@ -57,7 +57,7 @@ public class RequestWrapper<TRequest, TResponse> : RequestWrapperBase<TResponse>
                 var next = executionPlan;
                 executionPlan = () => {
                     var taskResponse = behavior.InvokeAsync(typedRequest, () => next().AsTask(), ct);
-                    return new ValueTask<TResponse>(taskResponse);
+                    return new ValueTask<TResponse?>(taskResponse);
                 };
             }
         }
@@ -99,7 +99,7 @@ public class RequestWrapper<TRequest, TResponse> : RequestWrapperBase<TResponse>
 /// <typeparam name="TResponse">The type of the response.</typeparam>
 public class AsyncRequestWrapper<TRequest, TResponse> : AsyncRequestWrapperBase<TResponse>
     where TRequest : IRequest<TResponse> {
-    public override Task<TResponse> Handle(
+    public override Task<TResponse?> Handle(
         object request,
         IServiceProvider provider,
         CancellationToken ct
@@ -127,7 +127,7 @@ public class AsyncRequestWrapper<TRequest, TResponse> : AsyncRequestWrapperBase<
                 var behavior = syncList[i];
                 var next = executionPlan;
                 executionPlan = () => {
-                    var vt = behavior.InvokeAsync(typedRequest, () => new ValueTask<TResponse>(next()), ct);
+                    var vt = behavior.InvokeAsync(typedRequest, () => new ValueTask<TResponse?>(next()), ct);
                     return vt.AsTask();
                 };
             }

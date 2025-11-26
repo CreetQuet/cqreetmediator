@@ -28,13 +28,13 @@ public class MediatorBenchmarks {
 
 
     [Benchmark(Baseline = true)]
-    public async ValueTask<string> DirectCall() {
+    public async ValueTask<string?> DirectCall() {
         return await _handlerDirecto.HandleAsync(_request, CancellationToken.None);
     }
 
 
     [Benchmark]
-    public async ValueTask<string> MediatorSend() {
+    public async ValueTask<string?> MediatorSend() {
         return await _mediator.Send(_request, CancellationToken.None);
     }
 }
@@ -42,8 +42,8 @@ public class MediatorBenchmarks {
 public record Ping(string Msg) : IRequest<string>;
 
 public class PingHandler : IRequestHandler<Ping, string> {
-    public ValueTask<string> HandleAsync(Ping request, CancellationToken ct) {
+    public ValueTask<string?> HandleAsync(Ping request, CancellationToken ct) {
 
-        return new ValueTask<string>(request.Msg);
+        return new ValueTask<string?>(request.Msg);
     }
 }

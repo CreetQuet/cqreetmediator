@@ -15,7 +15,7 @@ public abstract class RequestWrapperBase<TResponse> {
     /// <param name="provider">The service provider.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>A ValueTask containing the response.</returns>
-    public abstract ValueTask<TResponse> Handle(
+    public abstract ValueTask<TResponse?> Handle(
         object request,
         IServiceProvider provider,
         CancellationToken ct);
@@ -33,7 +33,7 @@ public abstract class AsyncRequestWrapperBase<TResponse> {
     /// <param name="provider">The service provider.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>A Task containing the response.</returns>
-    public abstract Task<TResponse> Handle(
+    public abstract Task<TResponse?> Handle(
         object request,
         IServiceProvider provider,
         CancellationToken ct);
