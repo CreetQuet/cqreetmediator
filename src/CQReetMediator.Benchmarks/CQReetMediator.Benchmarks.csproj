@@ -9,11 +9,11 @@
 
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.15.6" />
+    <PackageReference Include="MediatR" Version="13.1.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\CQReetMediator\CQReetMediator.csproj" />
-    <ProjectReference Include="..\CQReetMediator.Abstractions\CQReetMediator.Abstractions.csproj" />
+    <ProjectReference Include="..\CQReetMediator.DependencyInjection\CQReetMediator.DependencyInjection.csproj" />
   </ItemGroup>
 
 </Project>

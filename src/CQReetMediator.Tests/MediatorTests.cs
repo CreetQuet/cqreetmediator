@@ -3,150 +3,62 @@ using Xunit;
 
 namespace CQReetMediator.Tests;
 
-public class MediatorTests {
-    // ---------------------------
-    // Helpers (Mock Handlers)
-    // ---------------------------
+public class MediatorCoreTests {
+    private MediatorRegistry CreateManualRegistry() {
+        var reqWrappers = new Dictionary<Type, object>();
+        var asyncWrappers = new Dictionary<Type, object>();
+        var notifWrappers = new Dictionary<Type, NotificationWrapperBase>();
 
-    public class TestCommand : ICommand<int> {
-        public int Value { get; set; }
-    }
+        var wrapperType = typeof(RequestWrapper<,>).MakeGenericType(typeof(Ping), typeof(string));
+        var wrapperInstance = Activator.CreateInstance(wrapperType)!;
 
-    public class TestCommandHandler : IRequestHandler<TestCommand, int> {
-        public ValueTask<int> HandleAsync(TestCommand cmd, CancellationToken ct)
-            => ValueTask.FromResult(cmd.Value * 2);
-    }
+        reqWrappers.Add(typeof(Ping), wrapperInstance);
 
-    public class TestPipeline : IPipelineBehavior<TestCommand, int> {
-        public List<string> Calls = new();
-
-        public async ValueTask<int> InvokeAsync(TestCommand request, Func<ValueTask<int>> next, CancellationToken ct) {
-            Calls.Add("before");
-            var result = await next();
-            Calls.Add("after");
-            return result + 1;
-        }
-    }
-
-    public class TestNotification : INotification { }
-
-    public class TestNotificationHandlerA : INotificationHandler<TestNotification> {
-        public bool Called = false;
-
-        public Task HandleAsync(TestNotification notification, CancellationToken ct) {
-            Called = true;
-            return Task.CompletedTask;
-        }
-    }
-
-    public class TestNotificationHandlerB : INotificationHandler<TestNotification> {
-        public bool Called = false;
-
-        public Task HandleAsync(TestNotification notification, CancellationToken ct) {
-            Called = true;
-            return Task.CompletedTask;
-        }
-    }
-
-    // ---------------------------
-    // Tests
-    // ---------------------------
-
-    [Fact]
-    public async Task SendAsync_Should_Invoke_Handler() {
-        var handler = new TestCommandHandler();
-
-        var mediator = new Mediator(
-            singleResolver: t => t == typeof(IRequestHandler<TestCommand, int>)
-                ? handler
-                : null,
-            multipleResolver: t => Array.Empty<object>()
-        );
-
-        var res = await mediator.SendAsync(new TestCommand { Value = 3 });
-
-        Assert.Equal(6, res);
+        return new MediatorRegistry(reqWrappers, asyncWrappers, notifWrappers);
     }
 
     [Fact]
-    public async Task SendAsync_Should_Invoke_Pipelines_In_Order() {
-        var handler = new TestCommandHandler();
-        var pipeline = new TestPipeline();
+    public async Task Send_Should_Locate_Wrapper_And_Execute_Handler() {
+        var container = new FakeServiceProvider();
+        container.Register(typeof(IRequestHandler<Ping, string>), new PingHandler());
+        container.Register(typeof(IEnumerable<IPipelineBehavior<Ping, string>>), new List<IPipelineBehavior<Ping, string>>());
 
-        var mediator = new Mediator(
-            singleResolver: t => t == typeof(IRequestHandler<TestCommand, int>)
-                ? handler
-                : null,
-            multipleResolver: t => t == typeof(IPipelineBehavior<TestCommand, int>)
-                ? new[] { pipeline }
-                : Array.Empty<object>()
-        );
+        var registry = CreateManualRegistry();
+        var mediator = new Mediator(container, registry);
 
-        var res = await mediator.SendAsync(new TestCommand { Value = 5 });
+        var response = await mediator.Send(new Ping("Manual"));
 
-        Assert.Equal(11, res);
-        Assert.Equal(new[] { "before", "after" }, pipeline.Calls);
+        Assert.Equal("Pong: Manual", response);
     }
 
     [Fact]
-    public async Task SendAsync_Should_Throw_When_No_Handler() {
-        var mediator = new Mediator(
-            singleResolver: t => null,
-            multipleResolver: t => Array.Empty<object>()
-        );
+    public async Task Send_Should_Execute_Pipelines_Manually_Injected() {
+        var spy = new PipelineSpy();
+        var container = new FakeServiceProvider();
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            mediator.SendAsync(new TestCommand { Value = 1 }));
+        container.Register(typeof(IRequestHandler<Ping, string>), new PingHandler());
+
+        var pipelineInstance = new TestPipeline<Ping, string>(spy);
+        var pipelines = new List<IPipelineBehavior<Ping, string>> { pipelineInstance };
+        container.Register(typeof(IEnumerable<IPipelineBehavior<Ping, string>>), pipelines);
+
+        var registry = CreateManualRegistry();
+        var mediator = new Mediator(container, registry);
+
+        await mediator.Send(new Ping("With Pipeline"));
+
+        Assert.True(spy.Executed, "The pipeline should have been executed");
     }
 
     [Fact]
-    public async Task PublishAsync_Should_Call_All_Notification_Handlers() {
-        var handlerA = new TestNotificationHandlerA();
-        var handlerB = new TestNotificationHandlerB();
+    public async Task Send_Should_Throw_If_Handler_Not_Registered_In_Container() {
+        var container = new FakeServiceProvider();
 
-        var mediator = new Mediator(
-            singleResolver: _ => null,
-            multipleResolver: t =>
-                t == typeof(INotificationHandler<TestNotification>)
-                    ? new object[] { handlerA, handlerB }
-                    : Array.Empty<object>()
-        );
+        var registry = CreateManualRegistry();
+        var mediator = new Mediator(container, registry);
 
-        await mediator.PublishAsync(new TestNotification());
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () => { await mediator.Send(new Ping("Fail")); });
 
-        Assert.True(handlerA.Called);
-        Assert.True(handlerB.Called);
+        Assert.Contains("Handler not found", exception.Message);
     }
-
-    [Fact]
-    public async Task PublishAsync_Should_Invoke_Handlers_In_Sequence() {
-        List<string> order = new();
-
-        var mediator = new Mediator(
-            singleResolver: _ => null,
-            multipleResolver: t =>
-                t == typeof(INotificationHandler<TestNotification>)
-                    ? new object[] {
-                        new InlineNotificationHandler(_ => order.Add("A")),
-                        new InlineNotificationHandler(_ => order.Add("B"))
-                    }
-                    : Array.Empty<object>()
-        );
-
-        await mediator.PublishAsync(new TestNotification());
-
-        Assert.Equal(new[] { "A", "B" }, order);
-    }
-
-    public class InlineNotificationHandler : INotificationHandler<TestNotification> {
-        private readonly Action<TestNotification> _act;
-
-        public InlineNotificationHandler(Action<TestNotification> act) => _act = act;
-
-        public Task HandleAsync(TestNotification notification, CancellationToken ct) {
-            _act(notification);
-            return Task.CompletedTask;
-        }
-    }
-
 }

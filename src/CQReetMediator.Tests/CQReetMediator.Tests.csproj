@@ -8,7 +8,6 @@
 
     <ItemGroup>
         <ProjectReference Include="..\CQReetMediator\CQReetMediator.csproj"/>
-        <ProjectReference Include="..\CQReetMediator.Abstractions\CQReetMediator.Abstractions.csproj"/>
     </ItemGroup>
 
     <ItemGroup>

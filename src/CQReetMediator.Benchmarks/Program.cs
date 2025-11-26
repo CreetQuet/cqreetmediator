@@ -1,5 +1,6 @@
 ﻿using BenchmarkDotNet.Running;
 using CQReetMediator.Benchmarks;
 
-//BenchmarkRunner.Run<MediatorBenchmarks>();
-BenchmarkRunner.Run<MediatorMassiveLoadBenchmarks>();
+BenchmarkRunner.Run<MediatorBenchmarks>();
+//await ComparisonLoadTest.RunAsync();
+//await MassiveLoadTest.RunAsync();

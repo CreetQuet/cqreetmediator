@@ -1,199 +1,96 @@
-﻿using CQReetMediator.Abstractions;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
+using CQReetMediator.Abstractions;
 using Xunit;
 
 namespace CQReetMediator.DependencyInjection.Tests;
 
-public sealed class ServiceCollectionTests {
-    //
-    // ──────────────────────────────────────────────
-    //  TEST: REGISTERS CORE SERVICES
-    // ──────────────────────────────────────────────
-    //
+public class ServiceCollectionTests {
     [Fact]
-    public void AddCQReetMediator_Should_Register_Core_Services() {
+    public void AddCQReetMediator_Should_Register_Mediator_Interface() {
         var services = new ServiceCollection();
 
-        services.AddCQReetMediator(typeof(TestCommand).Assembly);
-
+        services.AddCQReetMediator(typeof(SyncRequest));
         var provider = services.BuildServiceProvider();
-        Assert.NotNull(provider.GetService<IMediator>());
 
-        Assert.Same(
-            provider.GetService<IMediator>(),
-            provider.GetService<IMediator>()); // singleton
+        var mediator = provider.GetService<IMediator>();
+        Assert.NotNull(mediator);
     }
 
     [Fact]
-    public void AddCQReetMediator_Should_Register_Command_And_Query_Handlers() {
+    public async Task AddCQReetMediator_Should_Register_And_Resolve_SyncHandler() {
         var services = new ServiceCollection();
 
-        services.AddCQReetMediator(typeof(TestCommand).Assembly);
-
-        var provider = services.BuildServiceProvider();
-
-        var commandHandler = provider.GetService<IRequestHandler<TestCommand, string>>();
-        var queryHandler = provider.GetService<IRequestHandler<TestQuery, int>>();
-
-        Assert.NotNull(commandHandler);
-        Assert.NotNull(queryHandler);
-    }
-
-    [Fact]
-    public void AddCQReetMediator_Should_Register_Notification_Handlers() {
-        var services = new ServiceCollection();
-
-        services.AddCQReetMediator(typeof(NotificationAHandler).Assembly);
-
-        var provider = services.BuildServiceProvider();
-
-        var handlers = provider.GetService<IEnumerable<INotificationHandler<TestEvent>>>();
-
-        Assert.NotNull(handlers);
-        Assert.Equal(2, handlers.Count());
-    }
-
-    [Fact]
-    public void AddCQReetMediator_Should_Register_Pipeline_Behaviors() {
-        var services = new ServiceCollection();
-
-        services.AddCQReetMediator(typeof(PipelineTestCommand).Assembly);
-
-        var provider = services.BuildServiceProvider();
-
-        var behaviors = provider.GetService<IEnumerable<IPipelineBehavior<PipelineTestCommand, bool>>>();
-
-        Assert.NotNull(behaviors);
-        Assert.Single(behaviors);
-    }
-
-    [Fact]
-    public async Task Mediator_Should_Execute_Command_Through_DI() {
-        var services = new ServiceCollection();
-
-        services.AddCQReetMediator(typeof(TestCommand).Assembly);
-
-        var provider = services.BuildServiceProvider();
-
-        var mediator = provider.GetRequiredService<IMediator>();
-
-        var result = await mediator.Send(new TestCommand("Hello"));
-        Assert.Equal("Handled: Hello", result);
-    }
-
-    //
-    // ──────────────────────────────────────────────
-    //  TEST: END-TO-END NOTIFICATIONS
-    // ──────────────────────────────────────────────
-    //
-    [Fact]
-    public async Task Mediator_Should_Invoke_All_Notification_Handlers() {
-        var services = new ServiceCollection();
-
-        services.AddCQReetMediator(typeof(NotificationAHandler).Assembly);
+        services.AddCQReetMediator(typeof(SyncRequest));
+        services.AddSingleton<PipelineSpy>();
 
         var provider = services.BuildServiceProvider();
         var mediator = provider.GetRequiredService<IMediator>();
 
-        var eventInstance = new TestEvent("Ping");
+        string result = await mediator.Send(new SyncRequest("Hi"));
 
-        var handlers = provider.GetRequiredService<IEnumerable<INotificationHandler<TestEvent>>>();
-
-        var a = handlers.OfType<NotificationAHandler>().First();
-        var b = handlers.OfType<NotificationBHandler>().First();
-
-        await mediator.PublishAsync(eventInstance);
-
-        Assert.True(a.Called);
-        Assert.True(b.Called);
+        Assert.Equal("Sync: Hi", result);
     }
 
-    //
-    // ──────────────────────────────────────────────
-    //  TEST: PIPELINES EXECUTE DURING DI RESOLUTION
-    // ──────────────────────────────────────────────
-    //
     [Fact]
-    public async Task Mediator_Should_Execute_Pipeline_Behaviors() {
+    public async Task AddCQReetMediator_Should_Register_And_Resolve_AsyncHandler() {
         var services = new ServiceCollection();
-
-        services.AddCQReetMediator(typeof(PipelineTestCommand).Assembly);
+        services.AddCQReetMediator(typeof(AsyncRequest));
+        services.AddSingleton<PipelineSpy>();
 
         var provider = services.BuildServiceProvider();
         var mediator = provider.GetRequiredService<IMediator>();
 
-        await mediator.Send(new PipelineTestCommand());
+        string result = await mediator.SendAsync(new AsyncRequest("World"));
 
-        var pipeline = provider
-            .GetRequiredService<IEnumerable<IPipelineBehavior<PipelineTestCommand, bool>>>()
-            .OfType<TestPipeline<PipelineTestCommand, bool>>()
-            .FirstOrDefault();
-
-        Assert.NotNull(pipeline);
-        Assert.True(pipeline.Called);
-
+        Assert.Equal("Async: World", result);
     }
 
+    [Fact]
+    public async Task AddCQReetMediator_Should_Register_All_NotificationHandlers() {
+        var services = new ServiceCollection();
+        services.AddCQReetMediator(typeof(TestNotification));
 
-    //
-    // ──────────────────────────────────────────────
-    //  SUPPORTING TEST TYPES
-    // ──────────────────────────────────────────────
-    //
+        var spy = new NotificationSpy();
+        services.AddSingleton(spy);
 
-    public interface ICommand<TResponse> : IRequest<TResponse> { }
+        var provider = services.BuildServiceProvider();
+        var mediator = provider.GetRequiredService<IMediator>();
 
-    public interface IQuery<TResponse> : IRequest<TResponse> { }
+        await mediator.PublishAsync(new TestNotification("Event"));
 
-    public sealed record TestCommand(string Message) : ICommand<string>;
-
-    public sealed class TestCommandHandler : IRequestHandler<TestCommand, string> {
-        public ValueTask<string> HandleAsync(TestCommand command, CancellationToken ct)
-            => ValueTask.FromResult($"Handled: {command.Message}");
+        Assert.Equal(2, spy.Calls.Count);
+        Assert.Contains("Handler1-Event", spy.Calls);
+        Assert.Contains("Handler2-Event", spy.Calls);
     }
 
-    public sealed record TestQuery(string Query) : IQuery<int>;
+    [Fact]
+    public async Task AddCQReetMediator_Should_Register_Generic_Pipelines_Correctly() {
+        var services = new ServiceCollection();
 
-    public sealed class TestQueryHandler : IRequestHandler<TestQuery, int> {
-        public ValueTask<int> HandleAsync(TestQuery request, CancellationToken ct)
-            => ValueTask.FromResult(42);
+        services.AddCQReetMediator(typeof(PipelineRequest));
+
+        var spy = new PipelineSpy();
+        services.AddSingleton(spy);
+
+        var provider = services.BuildServiceProvider();
+        var mediator = provider.GetRequiredService<IMediator>();
+
+        await mediator.Send(new PipelineRequest());
+
+        Assert.True(spy.WasCalled, "The generic pipeline didn't execute");
     }
 
-    public sealed record TestEvent(string Value) : INotification;
+    [Fact]
+    public void Should_Throw_When_Request_Has_No_Handler() {
+        var services = new ServiceCollection();
+        services.AddCQReetMediator(typeof(SyncRequest));
+        var provider = services.BuildServiceProvider();
+        var mediator = provider.GetRequiredService<IMediator>();
 
-    public sealed class NotificationAHandler : INotificationHandler<TestEvent> {
-        public bool Called { get; private set; }
+        var requestWithout = new RequestWithoutHandler();
 
-        public Task HandleAsync(TestEvent notification, CancellationToken ct) {
-            Called = true;
-            return Task.CompletedTask;
-        }
+        Assert.ThrowsAny<Exception>(() => { mediator.Send(requestWithout).AsTask().GetAwaiter().GetResult(); });
     }
 
-    public sealed class NotificationBHandler : INotificationHandler<TestEvent> {
-        public bool Called { get; private set; }
-
-        public Task HandleAsync(TestEvent notification, CancellationToken ct) {
-            Called = true;
-            return Task.CompletedTask;
-        }
-    }
-
-    public sealed record PipelineTestCommand : ICommand<bool>;
-
-    public sealed class PipelineTestHandler : IRequestHandler<PipelineTestCommand, bool> {
-        public ValueTask<bool> HandleAsync(PipelineTestCommand cmd, CancellationToken ct)
-            => ValueTask.FromResult(true);
-    }
-
-    public sealed class TestPipeline<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
-        where TRequest : IRequest<TResponse> {
-        public bool Called { get; private set; }
-
-        public ValueTask<TResponse> InvokeAsync(TRequest request, Func<ValueTask<TResponse>> next, CancellationToken ct) {
-            Called = true;
-            return next();
-        }
-    }
-
+    public record RequestWithoutHandler : IRequest<bool>;
 }
