@@ -6,8 +6,8 @@
 
 <br/>
 
-[![Build](https://img.shields.io/github/actions/workflow/status/CreetStack/CQReetMediator/ci.yml?label=Build&style=for-the-badge)]()
-[![Tests](https://img.shields.io/github/actions/workflow/status/CreetStack/CQReetMediator/tests.yml?label=Tests&style=for-the-badge)]()
+[![Build](https://img.shields.io/github/actions/workflow/status/CreetQuet/CQReetMediator/ci.yml?label=Build&style=for-the-badge)]()
+[![Tests](https://img.shields.io/github/actions/workflow/status/CreetQuet/CQReetMediator/tests.yml?label=Tests&style=for-the-badge)]()
 [![NuGet](https://img.shields.io/nuget/v/CQReetMediator.svg?style=for-the-badge&label=NuGet)]()
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)]()
 [![.NET 9](https://img.shields.io/badge/.NET-9.0-purple.svg?style=for-the-badge)]()
