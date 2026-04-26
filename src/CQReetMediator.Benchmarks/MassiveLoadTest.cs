@@ -12,7 +12,7 @@ public static class MassiveLoadTest {
         Console.ResetColor();
 
         var services = new ServiceCollection();
-        services.AddCQReetMediator(typeof(FastPing));
+        services.AddCQReetMediator();
         var provider = services.BuildServiceProvider();
         var mediator = provider.GetRequiredService<IMediator>();
 

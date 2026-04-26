@@ -1,4 +1,4 @@
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using CQReetMediator.Abstractions;
 using Xunit;
 
@@ -8,7 +8,7 @@ public class ServiceCollectionTests {
     [Fact]
     public void AddCQReetMediator_Should_Register_Mediator_Interface() {
         var services = new ServiceCollection();
-        services.AddCQReetMediator(typeof(SyncRequest));
+        services.AddCQReetMediator();
         var provider = services.BuildServiceProvider();
 
         var mediator = provider.GetService<IMediator>();
@@ -18,7 +18,7 @@ public class ServiceCollectionTests {
     [Fact]
     public async Task AddCQReetMediator_Should_Register_And_Resolve_Handler() {
         var services = new ServiceCollection();
-        services.AddCQReetMediator(typeof(SyncRequest));
+        services.AddCQReetMediator();
         services.AddSingleton<PipelineSpy>();
 
         var provider = services.BuildServiceProvider();
@@ -32,7 +32,7 @@ public class ServiceCollectionTests {
     [Fact]
     public async Task AddCQReetMediator_Should_Register_And_Resolve_AsyncHandler() {
         var services = new ServiceCollection();
-        services.AddCQReetMediator(typeof(AsyncRequest));
+        services.AddCQReetMediator();
         services.AddSingleton<PipelineSpy>();
 
         var provider = services.BuildServiceProvider();
@@ -46,7 +46,7 @@ public class ServiceCollectionTests {
     [Fact]
     public async Task AddCQReetMediator_Should_Register_And_Resolve_VoidCommand() {
         var services = new ServiceCollection();
-        services.AddCQReetMediator(typeof(VoidCommand));
+        services.AddCQReetMediator();
 
         var spy = new VoidCommandSpy();
         services.AddSingleton(spy);
@@ -64,7 +64,7 @@ public class ServiceCollectionTests {
     [Fact]
     public async Task AddCQReetMediator_Should_Register_All_NotificationHandlers() {
         var services = new ServiceCollection();
-        services.AddCQReetMediator(typeof(TestNotification));
+        services.AddCQReetMediator();
 
         var spy = new NotificationSpy();
         services.AddSingleton(spy);
@@ -82,7 +82,7 @@ public class ServiceCollectionTests {
     [Fact]
     public async Task AddCQReetMediator_Should_Register_Generic_Pipelines_Correctly() {
         var services = new ServiceCollection();
-        services.AddCQReetMediator(typeof(PipelineRequest));
+        services.AddCQReetMediator();
 
         var spy = new PipelineSpy();
         services.AddSingleton(spy);
@@ -98,7 +98,7 @@ public class ServiceCollectionTests {
     [Fact]
     public async Task AddCQReetMediator_Should_Register_Void_Generic_Pipelines() {
         var services = new ServiceCollection();
-        services.AddCQReetMediator(typeof(VoidPipelineCommand));
+        services.AddCQReetMediator();
 
         var spy = new VoidPipelineSpy();
         services.AddSingleton(spy);
@@ -114,7 +114,7 @@ public class ServiceCollectionTests {
     [Fact]
     public void Should_Throw_When_Request_Has_No_Handler() {
         var services = new ServiceCollection();
-        services.AddCQReetMediator(typeof(SyncRequest));
+        services.AddCQReetMediator();
         var provider = services.BuildServiceProvider();
         var mediator = provider.GetRequiredService<IMediator>();
 

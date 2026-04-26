@@ -17,7 +17,7 @@ public static class ComparisonLoadTest {
 
         // --- Setup CQReetMediator ---
         var cqreetServices = new ServiceCollection();
-        cqreetServices.AddCQReetMediator(typeof(FastPing));
+        cqreetServices.AddCQReetMediator();
         var cqreetProvider = cqreetServices.BuildServiceProvider();
         var cqreetMediator = cqreetProvider.GetRequiredService<IMediator>();
 

@@ -22,7 +22,10 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\CQReetMediator.DependencyInjection\CQReetMediator.DependencyInjection.csproj"/>
+        <ProjectReference Include="..\CQReetMediator\CQReetMediator.csproj" />
+        <ProjectReference Include="..\CQReetMediator.SourceGenerator\CQReetMediator.SourceGenerator.csproj"
+                          OutputItemType="Analyzer"
+                          ReferenceOutputAssembly="false" />
     </ItemGroup>
 
 </Project>

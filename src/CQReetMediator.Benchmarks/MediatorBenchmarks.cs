@@ -18,7 +18,7 @@ public class MediatorBenchmarks {
     [GlobalSetup]
     public void Setup() {
         var cqreetServices = new ServiceCollection();
-        cqreetServices.AddCQReetMediator(typeof(Ping));
+        cqreetServices.AddCQReetMediator();
         var cqreetProvider = cqreetServices.BuildServiceProvider();
         _cqreetMediator = cqreetProvider.GetRequiredService<IMediator>();
 

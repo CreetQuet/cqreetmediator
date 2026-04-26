@@ -114,7 +114,7 @@ public class CollectionQueryHandlerTests {
     [Fact]
     public async Task SendAsync_IReadOnlyList_Should_Return_Correct_Collection() {
         var services = CreateServiceCollection();
-        services.AddCQReetMediator(typeof(GetAllProductsHandler));
+        services.AddCQReetMediator();
         var provider = services.BuildServiceProvider();
         var mediator = provider.GetRequiredService<IMediator>();
 
@@ -130,7 +130,7 @@ public class CollectionQueryHandlerTests {
     [Fact]
     public async Task SendAsync_ListT_Should_Return_Mutable_Collection() {
         var services = CreateServiceCollection();
-        services.AddCQReetMediator(typeof(GetCategoriesHandler));
+        services.AddCQReetMediator();
         var provider = services.BuildServiceProvider();
         var mediator = provider.GetRequiredService<IMediator>();
 
@@ -147,7 +147,7 @@ public class CollectionQueryHandlerTests {
     [Fact]
     public async Task SendAsync_IEnumerable_Should_Return_Enumerable_Collection() {
         var services = CreateServiceCollection();
-        services.AddCQReetMediator(typeof(GetTagsHandler));
+        services.AddCQReetMediator();
         var provider = services.BuildServiceProvider();
         var mediator = provider.GetRequiredService<IMediator>();
 
@@ -162,7 +162,7 @@ public class CollectionQueryHandlerTests {
     [Fact]
     public async Task SendAsync_Array_Should_Return_Array_Collection() {
         var services = CreateServiceCollection();
-        services.AddCQReetMediator(typeof(GetProductIdsHandler));
+        services.AddCQReetMediator();
         var provider = services.BuildServiceProvider();
         var mediator = provider.GetRequiredService<IMediator>();
 
@@ -176,7 +176,7 @@ public class CollectionQueryHandlerTests {
     [Fact]
     public async Task SendAsync_IReadOnlyList_Should_Return_Collection_From_Async_Handler() {
         var services = CreateServiceCollection();
-        services.AddCQReetMediator(typeof(GetOrdersHandler));
+        services.AddCQReetMediator();
         var provider = services.BuildServiceProvider();
         var mediator = provider.GetRequiredService<IMediator>();
 
@@ -190,7 +190,7 @@ public class CollectionQueryHandlerTests {
     [Fact]
     public async Task SendAsync_ListT_Should_Return_Collection_From_Handler() {
         var services = CreateServiceCollection();
-        services.AddCQReetMediator(typeof(GetCustomerNamesHandler));
+        services.AddCQReetMediator();
         var provider = services.BuildServiceProvider();
         var mediator = provider.GetRequiredService<IMediator>();
 
@@ -204,7 +204,7 @@ public class CollectionQueryHandlerTests {
     [Fact]
     public async Task SendAsync_EmptyCollection_Should_Return_Empty_Array() {
         var services = CreateServiceCollection();
-        services.AddCQReetMediator(typeof(GetEmptyResultsHandler));
+        services.AddCQReetMediator();
         var provider = services.BuildServiceProvider();
         var mediator = provider.GetRequiredService<IMediator>();
 
@@ -218,7 +218,7 @@ public class CollectionQueryHandlerTests {
     [Fact]
     public async Task ScalarQuery_Should_Still_Work_With_Collection_Handlers_Registered() {
         var services = CreateServiceCollection();
-        services.AddCQReetMediator(typeof(GetAllProductsHandler), typeof(GetProductCountHandler));
+        services.AddCQReetMediator();
         var provider = services.BuildServiceProvider();
         var mediator = provider.GetRequiredService<IMediator>();
 
@@ -233,12 +233,7 @@ public class CollectionQueryHandlerTests {
     [Fact]
     public async Task MultipleCollectionTypes_Should_Work_In_Same_Registration() {
         var services = CreateServiceCollection();
-        services.AddCQReetMediator(
-            typeof(GetAllProductsHandler),
-            typeof(GetCategoriesHandler),
-            typeof(GetTagsHandler),
-            typeof(GetProductIdsHandler)
-        );
+        services.AddCQReetMediator();
         var provider = services.BuildServiceProvider();
         var mediator = provider.GetRequiredService<IMediator>();
 
@@ -262,7 +257,7 @@ public class CollectionQueryHandlerTests {
     [Fact]
     public async Task VoidQuery_Should_Execute_Handler() {
         var services = CreateServiceCollection();
-        services.AddCQReetMediator(typeof(VoidQueryHandler));
+        services.AddCQReetMediator();
 
         var spy = new VoidQuerySpy();
         services.AddSingleton(spy);
