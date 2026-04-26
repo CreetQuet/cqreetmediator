@@ -5,24 +5,14 @@ using CQReetMediator.Abstractions;
 
 namespace CQReetMediator.DependencyInjection;
 
-/// <summary>
-/// Extension methods for configuring CQReetMediator in the dependency injection container.
-/// </summary>
 public static class ServiceCollectionExtensions {
-    
-    /// <summary>
-    /// Scans the specified assemblies (or calling assembly) to register all Handlers, Pipelines, and the Mediator itself.
-    /// Automatically builds the <see cref="MediatorRegistry"/> for optimized execution.
-    /// </summary>
-    /// <param name="services">The service collection to add services to.</param>
-    /// <param name="assemblyMarkers">Optional types used to mark which assemblies to scan. If empty, scans the calling assembly.</param>
-    /// <returns>The service collection for chaining.</returns>
+
     public static IServiceCollection AddCQReetMediator(
         this IServiceCollection services,
         params Type[] assemblyMarkers
     ) {
         var requestWrappers = new Dictionary<Type, object>();
-        var asyncRequestWrappers = new Dictionary<Type, object>();
+        var voidRequestWrappers = new Dictionary<Type, object>();
         var notificationWrappers = new Dictionary<Type, NotificationWrapperBase>();
 
         var assemblies = assemblyMarkers.Length > 0
@@ -35,21 +25,15 @@ public static class ServiceCollectionExtensions {
 
         foreach (var type in allTypes) {
             if (type.IsGenericTypeDefinition) {
-                var interfaces = type.GetInterfaces();
-                foreach (var interfaceType in interfaces) {
+                foreach (var interfaceType in type.GetInterfaces()) {
                     if (!interfaceType.IsGenericType) continue;
-
                     var genericDef = interfaceType.GetGenericTypeDefinition();
 
-                    if (genericDef == typeof(IPipelineBehavior<,>)) {
+                    if (genericDef == typeof(IPipelineBehavior<,>))
                         services.AddTransient(typeof(IPipelineBehavior<,>), type);
-                    } else if (genericDef == typeof(IAsyncPipelineBehavior<,>)) {
-                        services.AddTransient(typeof(IAsyncPipelineBehavior<,>), type);
-                    }
-
-
+                    else if (genericDef == typeof(IPipelineBehavior<>))
+                        services.AddTransient(typeof(IPipelineBehavior<>), type);
                 }
-
                 continue;
             }
 
@@ -61,44 +45,38 @@ public static class ServiceCollectionExtensions {
 
                 if (genericDef == typeof(IRequestHandler<,>)) {
                     services.TryAddTransient(interfaceType, type);
-
                     var requestType = args[0];
                     var responseType = args[1];
 
                     if (!requestWrappers.ContainsKey(requestType)) {
                         var wrapperType = typeof(RequestWrapper<,>).MakeGenericType(requestType, responseType);
-                        var wrapper = Activator.CreateInstance(wrapperType)!;
-                        requestWrappers.Add(requestType, wrapper);
+                        requestWrappers.Add(requestType, Activator.CreateInstance(wrapperType)!);
                     }
-                } else if (genericDef == typeof(IAsyncRequestHandler<,>)) {
+                } else if (genericDef == typeof(IRequestHandler<>)) {
                     services.TryAddTransient(interfaceType, type);
-
                     var requestType = args[0];
-                    var responseType = args[1];
 
-                    if (!asyncRequestWrappers.ContainsKey(requestType)) {
-                        var wrapperType = typeof(AsyncRequestWrapper<,>).MakeGenericType(requestType, responseType);
-                        var wrapper = Activator.CreateInstance(wrapperType)!;
-                        asyncRequestWrappers.Add(requestType, wrapper);
+                    if (!voidRequestWrappers.ContainsKey(requestType)) {
+                        var wrapperType = typeof(VoidRequestWrapper<>).MakeGenericType(requestType);
+                        voidRequestWrappers.Add(requestType, Activator.CreateInstance(wrapperType)!);
                     }
                 } else if (genericDef == typeof(INotificationHandler<>)) {
                     services.AddTransient(interfaceType, type);
-
                     var notifType = args[0];
+
                     if (!notificationWrappers.ContainsKey(notifType)) {
                         var wrapperType = typeof(NotificationWrapper<>).MakeGenericType(notifType);
-                        var wrapper = (NotificationWrapperBase)Activator.CreateInstance(wrapperType)!;
-                        notificationWrappers.Add(notifType, wrapper);
+                        notificationWrappers.Add(notifType, (NotificationWrapperBase)Activator.CreateInstance(wrapperType)!);
                     }
-                } else if (genericDef == typeof(IPipelineBehavior<,>) || genericDef == typeof(IAsyncPipelineBehavior<,>)) {
+                } else if (genericDef == typeof(IPipelineBehavior<,>) || genericDef == typeof(IPipelineBehavior<>)) {
                     services.AddTransient(interfaceType, type);
                 }
             }
         }
 
-        var registry = new MediatorRegistry(requestWrappers, asyncRequestWrappers, notificationWrappers);
+        var registry = new MediatorRegistry(requestWrappers, voidRequestWrappers, notificationWrappers);
         services.AddSingleton(registry);
-        services.AddScoped<IMediator, Mediator>();
+        services.AddSingleton<IMediator, Mediator>();
 
         return services;
     }

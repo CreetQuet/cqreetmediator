@@ -2,7 +2,7 @@
 
 # ⚡️ CQReetMediator
 
-### The Zero-Allocation, High-Performance CQRS Mediator for .NET 9
+### Zero-Allocation, High-Performance CQRS Mediator for .NET 10
 
 <br/>
 
@@ -10,194 +10,330 @@
 [![Tests](https://img.shields.io/github/actions/workflow/status/CreetQuet/CQReetMediator/tests.yml?label=Tests&style=for-the-badge)]()
 [![NuGet](https://img.shields.io/nuget/v/CQReetMediator.svg?style=for-the-badge&label=NuGet)]()
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)]()
-[![.NET 9](https://img.shields.io/badge/.NET-9.0-purple.svg?style=for-the-badge)]()
+[![.NET 10](https://img.shields.io/badge/.NET-10.0-purple.svg?style=for-the-badge)]()
 
 <br/>
 
-**A generic, ultra-light mediator library designed for high-throughput CQRS architectures.**
-**Engineered to be invisible: 0 Bytes Allocation on the hot path.**
+**Ultra-light mediator library for high-throughput CQRS architectures.**
+**0 Bytes allocation on the hot path. Zero reflection at runtime. AOT-ready.**
 
 </div>
 
 ---
 
-## ✨ Features
+## Features
 
-- ⚡ **Zero-Allocation Architecture**: Uses `FastRequestWrapper` to achieve 0 bytes allocation on handler execution when no pipelines are present.
-- 🚀 **Blazing Fast**: Capable of processing over **5.3 Million requests per second**.
-- 🧠 **Smart Dispatch**: Automatically chooses between "Fast Path" (Direct execution) and "Pipeline Path" based on your DI configuration.
-- 🧊 **Frozen Caching**: Uses .NET 9 `FrozenDictionary` for O(1) ultra-fast handler lookups.
-- 🔄 **Hybrid Pipelines**: Seamlessly mixes `ValueTask` (Sync) and `Task` (Async) pipeline behaviors without performance penalties.
-- 📣 **Notifications**: Fire-and-forget event publishing with multiple handlers.
-- 💉 **DI Integration**: Native support for `Microsoft.Extensions.DependencyInjection`.
-
----
-
-## 📊 Benchmarks
-
-CQReetMediator is optimized to be as close to a direct method call as possible.
-
-**Environment**: .NET 9.0, Core i5-6400 class CPU.
-
-| Scenario                       | Throughput | Latency (Avg) | Memory Allocated |
-|:-------------------------------| :--- | :--- |:-----------------|
-| **Direct Call (Baseline)**     | ~60.2M req/s | 0.016 µs | 0 B              |
-| **CQReetMediator w/DI (Warm)** | **~5.3M req/s** | **0.185 µs** | **64 B** 🏆      |
-| **CQReetMediator w/DI (Cold)** | ~3.1M req/s | 0.322 µs | 64 B             |
-
-*> "It processes 1 million messages in less than what takes a human to blink (0.18s)."*
-
-*> "64 bytes from Dependency Injection pattern"*
+| Capability | Description |
+|:---|:---|
+| **Zero-Allocation Hot Path** | 0 bytes when no pipelines are present. Sealed wrappers, no virtual dispatch overhead. |
+| **AOT-Ready** | No `System.Reflection` at runtime. All wrappers are pre-compiled at DI registration. `FrozenDictionary` for O(1) lookups. |
+| **Unified Task API** | Single `Task`-based contract. No `ValueTask`/`Task` duality. Clean, predictable async model. |
+| **Pipeline Behaviors** | Extensible interceptor chain for validation, logging, transactions, caching. Open generic support. |
+| **Strict CancellationToken** | `CancellationToken` propagated through every handler, pipeline, and notification dispatch. |
+| **Commands vs Queries vs Events** | `ICommand` / `ICommand<T>`, `IQuery` / `IQuery<T>`, `INotification` with clear semantic contracts. |
+| **Void Requests** | `IRequest`, `ICommand`, `IQuery` without return value. Full pipeline support. |
+| **Notifications** | Fire-and-forget event publishing with multiple sequential handlers. |
+| **Collection Queries** | `IReadOnlyList<T>`, `List<T>`, `T[]`, `IEnumerable<T>` as TResponse with zero overhead. |
 
 ---
 
-## 📦 Installation
+## Benchmarks
 
-### Core package
+CQReetMediator is engineered to be as close to a direct method call as possible.
+
+| Scenario | Throughput | Latency (Avg) | Memory |
+|:---|:---|:---|:---|
+| **Direct Call (Baseline)** | ~60.2M req/s | 0.016 us | 0 B |
+| **CQReetMediator w/DI (Warm)** | ~5.3M req/s | 0.185 us | 64 B |
+| **CQReetMediator w/DI (Cold)** | ~3.1M req/s | 0.322 us | 64 B |
+
+> 64 bytes comes from the DI container resolution, not the mediator.
+
+---
+
+## Installation
 
 ```bash
 dotnet add package CQReetMediator
-````
-
-### Dependency Injection Extensions (Recommended)
-
-```bash
 dotnet add package CQReetMediator.DependencyInjection
 ```
 
------
+---
 
-## 🚀 Quick Start
+## Quick Start
 
-### 1. Define a Request
-
-Use `IRequest` for void commands or `IRequest<T>` for queries/commands with results.
+### 1. Define Requests
 
 ```csharp
-public sealed record CreateUserCommand(string Name) : IRequest<Guid>;
+// Command with response
+public sealed record CreateUserCommand(string Name) : ICommand<Guid>;
+
+// Void command
+public sealed record DeleteUserCommand(Guid Id) : ICommand;
+
+// Query with response
+public sealed record GetUserQuery(Guid Id) : IQuery<UserDto>;
+
+// Void query (health checks, warm-up, etc.)
+public sealed record WarmUpCacheQuery : IQuery;
 ```
 
-### 2. Implement the Handler
+### 2. Implement Handlers
 
-Use `ValueTask` for maximum performance.
+All handlers return `Task`. No `ValueTask` ambiguity.
 
 ```csharp
-public sealed class CreateUserCommandHandler : IRequestHandler<CreateUserCommand, Guid> 
+public sealed class CreateUserHandler : ICommandHandler<CreateUserCommand, Guid>
 {
-    public ValueTask<Guid> HandleAsync(CreateUserCommand request, CancellationToken ct)
+    public Task<Guid?> HandleAsync(CreateUserCommand request, CancellationToken ct)
+        => Task.FromResult<Guid?>(Guid.NewGuid());
+}
+
+public sealed class DeleteUserHandler : ICommandHandler<DeleteUserCommand>
+{
+    public Task HandleAsync(DeleteUserCommand request, CancellationToken ct)
     {
-        // Your logic here...
-        return ValueTask.FromResult(Guid.NewGuid());
+        // delete logic
+        return Task.CompletedTask;
+    }
+}
+
+public sealed class GetUserHandler : IQueryHandler<GetUserQuery, UserDto>
+{
+    public async Task<UserDto?> HandleAsync(GetUserQuery request, CancellationToken ct)
+    {
+        // fetch from database
+        return new UserDto(request.Id, "Garrosh");
     }
 }
 ```
 
 ### 3. Register in DI
 
-The library automatically scans assemblies, registers handlers, and builds the optimized registry.
+Automatic assembly scanning registers all handlers, pipelines, and builds the optimized registry.
 
 ```csharp
-// In Program.cs
 builder.Services.AddCQReetMediator(typeof(Program));
 ```
 
 ### 4. Use It
 
-Inject `IMediator` and send your request.
-
 ```csharp
-app.MapPost("/users", async (IMediator mediator) => 
+app.MapPost("/users", async (IMediator mediator) =>
 {
-    var id = await mediator.Send(new CreateUserCommand("Garrosh"));
+    var id = await mediator.SendAsync(new CreateUserCommand("Garrosh"));
     return Results.Ok(id);
+});
+
+app.MapDelete("/users/{id}", async (Guid id, IMediator mediator) =>
+{
+    await mediator.SendAsync(new DeleteUserCommand(id));
+    return Results.NoContent();
+});
+
+app.MapGet("/users/{id}", async (Guid id, IMediator mediator) =>
+{
+    var user = await mediator.SendAsync(new GetUserQuery(id));
+    return user is not null ? Results.Ok(user) : Results.NotFound();
 });
 ```
 
------
+---
 
-## 🧩 Pipeline Behaviors
+## Pipeline Behaviors
 
-Intercept requests for validation, logging, or transactions. You can use **Async** (`Task`) or **Sync** (`ValueTask`) behaviors; the mediator bridges them automatically.
+Intercept requests for cross-cutting concerns. Pipelines are executed in registration order.
+
+### With Response
 
 ```csharp
-public sealed class LoggingBehavior<TRequest, TResponse> 
-    : IPipelineBehavior<TRequest, TResponse> 
+public sealed class LoggingBehavior<TRequest, TResponse>
+    : IPipelineBehavior<TRequest, TResponse>
     where TRequest : IRequest<TResponse>
 {
-    public async ValueTask<TResponse> InvokeAsync(
+    public async Task<TResponse?> InvokeAsync(
         TRequest request,
         RequestHandlerDelegate<TResponse> next,
         CancellationToken ct)
     {
         Console.WriteLine($"[LOG] Processing: {typeof(TRequest).Name}");
-        
-        var response = await next(); // Execute next step
-        
-        Console.WriteLine($"[LOG] Completed.");
+        var response = await next();
+        Console.WriteLine($"[LOG] Completed: {typeof(TRequest).Name}");
         return response;
     }
 }
 ```
 
-To register open generic behaviors:
+### Void Pipeline
 
 ```csharp
-// Behaviors are executed in the order they are registered
-services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
-services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
-
-// Add CQReetMediator AFTER registering behaviors to enable smart-detection
-services.AddCQReetMediator(typeof(Program)); 
+public sealed class AuditBehavior<TRequest>
+    : IPipelineBehavior<TRequest>
+    where TRequest : IRequest
+{
+    public async Task InvokeAsync(
+        TRequest request,
+        RequestHandlerDelegate next,
+        CancellationToken ct)
+    {
+        Console.WriteLine($"[AUDIT] {typeof(TRequest).Name}");
+        await next();
+    }
+}
 ```
 
------
+### Registration
 
-## 📣 Notifications
+```csharp
+// Open generic behaviors are auto-discovered by AddCQReetMediator
+// Or register manually:
+services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
+services.AddTransient(typeof(IPipelineBehavior<>), typeof(AuditBehavior<>));
 
-Publish events to multiple listeners.
+services.AddCQReetMediator(typeof(Program));
+```
+
+---
+
+## Notifications
+
+Publish domain events to multiple handlers. Handlers execute sequentially.
 
 ```csharp
 public sealed record UserCreatedEvent(Guid UserId) : INotification;
 
-public sealed class EmailHandler : INotificationHandler<UserCreatedEvent> 
+public sealed class SendWelcomeEmail : INotificationHandler<UserCreatedEvent>
 {
-    public Task HandleAsync(UserCreatedEvent notification, CancellationToken ct) 
+    public Task HandleAsync(UserCreatedEvent notification, CancellationToken ct)
     {
-        Console.WriteLine($"Sending email to {notification.UserId}...");
+        // send email
         return Task.CompletedTask;
     }
 }
 
-public sealed class AnalyticsHandler : INotificationHandler<UserCreatedEvent> 
+public sealed class TrackAnalytics : INotificationHandler<UserCreatedEvent>
 {
-    public Task HandleAsync(UserCreatedEvent notification, CancellationToken ct) 
+    public Task HandleAsync(UserCreatedEvent notification, CancellationToken ct)
     {
-        Console.WriteLine("Tracking event...");
+        // track event
         return Task.CompletedTask;
     }
 }
 ```
-
-**Publishing:**
 
 ```csharp
 await mediator.PublishAsync(new UserCreatedEvent(userId));
 ```
 
------
+---
 
-## 📁 Repository Structure
+## Collection Queries
+
+TResponse can be any collection type with zero additional overhead.
+
+```csharp
+public sealed record GetAllUsersQuery : IQuery<IReadOnlyList<UserDto>>;
+public sealed record GetActiveIdsQuery : IQuery<int[]>;
+public sealed record GetTagsQuery : IQuery<IEnumerable<string>>;
+
+public sealed class GetAllUsersHandler
+    : IQueryHandler<GetAllUsersQuery, IReadOnlyList<UserDto>>
+{
+    public Task<IReadOnlyList<UserDto>?> HandleAsync(
+        GetAllUsersQuery query, CancellationToken ct)
+    {
+        UserDto[] users = [new(Guid.NewGuid(), "Alice"), new(Guid.NewGuid(), "Bob")];
+        return Task.FromResult<IReadOnlyList<UserDto>?>(users);
+    }
+}
+```
+
+**Zero-Allocation Tips:**
+- Return arrays as `IReadOnlyList<T>` (arrays implement it natively, zero interface overhead)
+- Use `Array.Empty<T>()` for empty results
+- Avoid LINQ operators (`ToList`, `Select`, `Where`) in hot paths
+- Consider `ArrayPool<T>` for large, high-frequency collections
+
+---
+
+## Architecture
+
+```
+IMediator.SendAsync(request)
+    |
+    v
+MediatorRegistry (FrozenDictionary - O(1) lookup)
+    |
+    v
+RequestWrapper<TRequest, TResponse> (sealed, pre-compiled at startup)
+    |
+    +-- Has pipelines? --> Build execution chain (reverse order) --> Execute
+    |
+    +-- No pipelines?  --> Direct handler call (fast path, 0 alloc)
+    |
+    v
+IRequestHandler<TRequest, TResponse>.HandleAsync(request, ct)
+```
+
+---
+
+## API Reference
+
+### IMediator
+
+```csharp
+public interface IMediator
+{
+    Task SendAsync(IRequest request, CancellationToken ct = default);
+    Task<TResponse?> SendAsync<TResponse>(IRequest<TResponse> request, CancellationToken ct = default);
+    Task PublishAsync(INotification notification, CancellationToken ct = default);
+}
+```
+
+### Contracts
+
+| Interface | Purpose |
+|:---|:---|
+| `IRequest` | Void request marker |
+| `IRequest<TResponse>` | Request with response |
+| `ICommand` / `ICommand<T>` | Command semantics (write operations) |
+| `IQuery` / `IQuery<T>` | Query semantics (read operations) |
+| `INotification` | Domain event / notification |
+
+### Handlers
+
+| Interface | Signature |
+|:---|:---|
+| `IRequestHandler<TRequest>` | `Task HandleAsync(TRequest, CancellationToken)` |
+| `IRequestHandler<TRequest, TResponse>` | `Task<TResponse?> HandleAsync(TRequest, CancellationToken)` |
+| `ICommandHandler<TRequest>` | Alias for `IRequestHandler<TRequest>` where `TRequest : ICommand` |
+| `ICommandHandler<TRequest, TResponse>` | Alias for `IRequestHandler<TRequest, TResponse>` where `TRequest : ICommand<TResponse>` |
+| `IQueryHandler<TRequest>` | Alias for `IRequestHandler<TRequest>` where `TRequest : IQuery` |
+| `IQueryHandler<TRequest, TResponse>` | Alias for `IRequestHandler<TRequest, TResponse>` where `TRequest : IQuery<TResponse>` |
+| `INotificationHandler<TNotification>` | `Task HandleAsync(TNotification, CancellationToken)` |
+
+### Pipeline Behaviors
+
+| Interface | Signature |
+|:---|:---|
+| `IPipelineBehavior<TRequest>` | `Task InvokeAsync(TRequest, RequestHandlerDelegate, CancellationToken)` |
+| `IPipelineBehavior<TRequest, TResponse>` | `Task<TResponse?> InvokeAsync(TRequest, RequestHandlerDelegate<TResponse>, CancellationToken)` |
+
+---
+
+## Repository Structure
 
 ```
 /src
-  CQReetMediator.Abstractions/       # Interfaces only (Zero dependencies)
-  CQReetMediator/                    # Core logic (Wrappers & Registry)
-  CQReetMediator.DependencyInjection/ # DI Extension methods (Microsoft.Extensions.DI)
-  CQReetMediator.Tests/              # Unit tests
-  CQReetMediator.Benchmarks/         # Performance tests
+  CQReetMediator.Abstractions/            # Pure interfaces, zero dependencies
+  CQReetMediator/                          # Core: Mediator, Registry, Wrappers
+  CQReetMediator.DependencyInjection/      # DI extensions (Microsoft.Extensions.DI)
+  CQReetMediator.Tests/                    # Unit tests
+  CQReetMediator.DependencyInjection.Tests/ # Integration tests
+  CQReetMediator.Benchmarks/              # Performance benchmarks
 ```
 
------
+---
 
 <div align="center">
 
@@ -205,7 +341,7 @@ await mediator.PublishAsync(new UserCreatedEvent(userId));
 
 This project is licensed under the **MIT License**.
 
------
+---
 
 ## ⭐ Support the Project
 

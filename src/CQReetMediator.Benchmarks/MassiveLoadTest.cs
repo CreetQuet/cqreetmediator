@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using CQReetMediator.Abstractions;
 using CQReetMediator.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,7 +17,7 @@ public static class MassiveLoadTest {
         var mediator = provider.GetRequiredService<IMediator>();
 
         Console.WriteLine("Warming up...");
-        await mediator.Send(new FastPing());
+        await mediator.SendAsync(new FastPing());
 
         int requestCount = 1_000_000;
         var request = new FastPing();
@@ -28,20 +28,19 @@ public static class MassiveLoadTest {
         var sw = Stopwatch.StartNew();
 
         for (int i = 0; i < requestCount; i++) {
-            tasks[i] = mediator.Send(request).AsTask();
+            tasks[i] = mediator.SendAsync(request);
         }
 
         await Task.WhenAll(tasks);
-
         sw.Stop();
 
         double seconds = sw.Elapsed.TotalSeconds;
         double rps = requestCount / seconds;
 
         Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine($"\n✅ COMPLETED in {seconds:F4} seconds");
-        Console.WriteLine($"🚀 Throughput: {rps:N0} req/sec");
-        Console.WriteLine($"⏱️ Average: {(sw.Elapsed.TotalMilliseconds * 1000 / requestCount):F4} µs/req");
+        Console.WriteLine($"\nCOMPLETED in {seconds:F4} seconds");
+        Console.WriteLine($"Throughput: {rps:N0} req/sec");
+        Console.WriteLine($"Average: {(sw.Elapsed.TotalMilliseconds * 1000 / requestCount):F4} us/req");
         Console.ResetColor();
     }
 }
@@ -49,5 +48,5 @@ public static class MassiveLoadTest {
 public record FastPing : IRequest<int>;
 
 public class FastPingHandler : IRequestHandler<FastPing, int> {
-    public ValueTask<int> HandleAsync(FastPing request, CancellationToken ct) => new(1);
+    public Task<int> HandleAsync(FastPing request, CancellationToken ct) => Task.FromResult(1);
 }

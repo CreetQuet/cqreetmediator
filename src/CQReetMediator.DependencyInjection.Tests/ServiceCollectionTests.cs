@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using CQReetMediator.Abstractions;
 using Xunit;
 
@@ -8,7 +8,6 @@ public class ServiceCollectionTests {
     [Fact]
     public void AddCQReetMediator_Should_Register_Mediator_Interface() {
         var services = new ServiceCollection();
-
         services.AddCQReetMediator(typeof(SyncRequest));
         var provider = services.BuildServiceProvider();
 
@@ -17,16 +16,15 @@ public class ServiceCollectionTests {
     }
 
     [Fact]
-    public async Task AddCQReetMediator_Should_Register_And_Resolve_SyncHandler() {
+    public async Task AddCQReetMediator_Should_Register_And_Resolve_Handler() {
         var services = new ServiceCollection();
-
         services.AddCQReetMediator(typeof(SyncRequest));
         services.AddSingleton<PipelineSpy>();
 
         var provider = services.BuildServiceProvider();
         var mediator = provider.GetRequiredService<IMediator>();
 
-        var result = await mediator.Send(new SyncRequest("Hi"));
+        var result = await mediator.SendAsync(new SyncRequest("Hi"));
 
         Assert.Equal("Sync: Hi", result);
     }
@@ -43,6 +41,24 @@ public class ServiceCollectionTests {
         var result = await mediator.SendAsync(new AsyncRequest("World"));
 
         Assert.Equal("Async: World", result);
+    }
+
+    [Fact]
+    public async Task AddCQReetMediator_Should_Register_And_Resolve_VoidCommand() {
+        var services = new ServiceCollection();
+        services.AddCQReetMediator(typeof(VoidCommand));
+
+        var spy = new VoidCommandSpy();
+        services.AddSingleton(spy);
+        services.AddSingleton<PipelineSpy>();
+        services.AddSingleton<VoidPipelineSpy>();
+
+        var provider = services.BuildServiceProvider();
+        var mediator = provider.GetRequiredService<IMediator>();
+
+        await mediator.SendAsync(new VoidCommand("Fire"));
+
+        Assert.Equal("Fire", spy.LastMsg);
     }
 
     [Fact]
@@ -66,7 +82,6 @@ public class ServiceCollectionTests {
     [Fact]
     public async Task AddCQReetMediator_Should_Register_Generic_Pipelines_Correctly() {
         var services = new ServiceCollection();
-
         services.AddCQReetMediator(typeof(PipelineRequest));
 
         var spy = new PipelineSpy();
@@ -75,9 +90,25 @@ public class ServiceCollectionTests {
         var provider = services.BuildServiceProvider();
         var mediator = provider.GetRequiredService<IMediator>();
 
-        await mediator.Send(new PipelineRequest());
+        await mediator.SendAsync(new PipelineRequest());
 
         Assert.True(spy.WasCalled, "The generic pipeline didn't execute");
+    }
+
+    [Fact]
+    public async Task AddCQReetMediator_Should_Register_Void_Generic_Pipelines() {
+        var services = new ServiceCollection();
+        services.AddCQReetMediator(typeof(VoidPipelineCommand));
+
+        var spy = new VoidPipelineSpy();
+        services.AddSingleton(spy);
+
+        var provider = services.BuildServiceProvider();
+        var mediator = provider.GetRequiredService<IMediator>();
+
+        await mediator.SendAsync(new VoidPipelineCommand());
+
+        Assert.True(spy.WasCalled, "The void pipeline didn't execute");
     }
 
     [Fact]
@@ -89,7 +120,9 @@ public class ServiceCollectionTests {
 
         var requestWithout = new RequestWithoutHandler();
 
-        Assert.ThrowsAny<Exception>(() => { mediator.Send(requestWithout).AsTask().GetAwaiter().GetResult(); });
+        Assert.ThrowsAny<Exception>(() => {
+            mediator.SendAsync(requestWithout).GetAwaiter().GetResult();
+        });
     }
 
     public record RequestWithoutHandler : IRequest<bool>;

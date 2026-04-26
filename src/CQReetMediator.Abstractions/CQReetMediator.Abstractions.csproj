@@ -1,7 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net9.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <IsPackable>true</IsPackable>
@@ -12,6 +11,8 @@
         <PackageLicenseUrl></PackageLicenseUrl>
         <RepositoryUrl>https://github.com/CreetQuet/cqreetmediator</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
+        <TargetFrameworks>net9.0;net10.0</TargetFrameworks>
+        <LangVersion>14</LangVersion>
     </PropertyGroup>
 
 </Project>
