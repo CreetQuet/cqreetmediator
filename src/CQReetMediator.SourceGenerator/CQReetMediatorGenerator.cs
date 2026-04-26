@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
@@ -17,6 +17,10 @@ namespace CQReetMediator.SourceGenerator
         private const string NotificationHandler1 = "CQReetMediator.Abstractions.INotificationHandler`1";
         private const string PipelineBehavior2 = "CQReetMediator.Abstractions.IPipelineBehavior`2";
         private const string PipelineBehavior1 = "CQReetMediator.Abstractions.IPipelineBehavior`1";
+        private const string PreProcessor2 = "CQReetMediator.Abstractions.IPreProcessorBehavior`2";
+        private const string PreProcessor1 = "CQReetMediator.Abstractions.IPreProcessorBehavior`1";
+        private const string PostProcessor2 = "CQReetMediator.Abstractions.IPostProcessorBehavior`2";
+        private const string PostProcessor1 = "CQReetMediator.Abstractions.IPostProcessorBehavior`1";
 
         private static readonly SymbolDisplayFormat FullyQualified = SymbolDisplayFormat.FullyQualifiedFormat;
 
@@ -122,6 +126,68 @@ namespace CQReetMediator.SourceGenerator
                         builder.Add(new RegistrationInfo("VPB", handler, reqType, "", false));
                     }
                 }
+                else if (meta == PreProcessor2)
+                {
+                    bool isOpen = iface.TypeArguments.Any(t => t.TypeKind == TypeKind.TypeParameter);
+                    if (isOpen)
+                    {
+                        var handler = OpenGenericTypeof(symbol.OriginalDefinition);
+                        builder.Add(new RegistrationInfo("PreB2", handler, "", "", true));
+                    }
+                    else
+                    {
+                        var handler = symbol.ToDisplayString(FullyQualified);
+                        var reqType = iface.TypeArguments[0].ToDisplayString(FullyQualified);
+                        var respType = iface.TypeArguments[1].ToDisplayString(FullyQualified);
+                        builder.Add(new RegistrationInfo("PreB2", handler, reqType, respType, false));
+                    }
+                }
+                else if (meta == PreProcessor1)
+                {
+                    bool isOpen = iface.TypeArguments.Any(t => t.TypeKind == TypeKind.TypeParameter);
+                    if (isOpen)
+                    {
+                        var handler = OpenGenericTypeof(symbol.OriginalDefinition);
+                        builder.Add(new RegistrationInfo("PreB1", handler, "", "", true));
+                    }
+                    else
+                    {
+                        var handler = symbol.ToDisplayString(FullyQualified);
+                        var reqType = iface.TypeArguments[0].ToDisplayString(FullyQualified);
+                        builder.Add(new RegistrationInfo("PreB1", handler, reqType, "", false));
+                    }
+                }
+                else if (meta == PostProcessor2)
+                {
+                    bool isOpen = iface.TypeArguments.Any(t => t.TypeKind == TypeKind.TypeParameter);
+                    if (isOpen)
+                    {
+                        var handler = OpenGenericTypeof(symbol.OriginalDefinition);
+                        builder.Add(new RegistrationInfo("PostB2", handler, "", "", true));
+                    }
+                    else
+                    {
+                        var handler = symbol.ToDisplayString(FullyQualified);
+                        var reqType = iface.TypeArguments[0].ToDisplayString(FullyQualified);
+                        var respType = iface.TypeArguments[1].ToDisplayString(FullyQualified);
+                        builder.Add(new RegistrationInfo("PostB2", handler, reqType, respType, false));
+                    }
+                }
+                else if (meta == PostProcessor1)
+                {
+                    bool isOpen = iface.TypeArguments.Any(t => t.TypeKind == TypeKind.TypeParameter);
+                    if (isOpen)
+                    {
+                        var handler = OpenGenericTypeof(symbol.OriginalDefinition);
+                        builder.Add(new RegistrationInfo("PostB1", handler, "", "", true));
+                    }
+                    else
+                    {
+                        var handler = symbol.ToDisplayString(FullyQualified);
+                        var reqType = iface.TypeArguments[0].ToDisplayString(FullyQualified);
+                        builder.Add(new RegistrationInfo("PostB1", handler, reqType, "", false));
+                    }
+                }
             }
 
             return builder.Count > 0 ? builder.ToImmutable() : ImmutableArray<RegistrationInfo>.Empty;
@@ -204,10 +270,57 @@ namespace CQReetMediator.SourceGenerator
                                 "            global::Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions.AddTransient<global::CQReetMediator.Abstractions.IPipelineBehavior<{0}>, {1}>(services);",
                                 reg.RequestType, reg.HandlerType));
                         break;
+                    case "PreB2":
+                        if (reg.IsOpenGeneric)
+                            sb.AppendLine(string.Format(
+                                "            global::Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions.AddTransient(services, typeof(global::CQReetMediator.Abstractions.IPreProcessorBehavior<,>), typeof({0}));",
+                                reg.HandlerType));
+                        else
+                            sb.AppendLine(string.Format(
+                                "            global::Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions.AddTransient<global::CQReetMediator.Abstractions.IPreProcessorBehavior<{0}, {1}>, {2}>(services);",
+                                reg.RequestType, reg.ResponseType, reg.HandlerType));
+                        break;
+                    case "PreB1":
+                        if (reg.IsOpenGeneric)
+                            sb.AppendLine(string.Format(
+                                "            global::Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions.AddTransient(services, typeof(global::CQReetMediator.Abstractions.IPreProcessorBehavior<>), typeof({0}));",
+                                reg.HandlerType));
+                        else
+                            sb.AppendLine(string.Format(
+                                "            global::Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions.AddTransient<global::CQReetMediator.Abstractions.IPreProcessorBehavior<{0}>, {1}>(services);",
+                                reg.RequestType, reg.HandlerType));
+                        break;
+                    case "PostB2":
+                        if (reg.IsOpenGeneric)
+                            sb.AppendLine(string.Format(
+                                "            global::Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions.AddTransient(services, typeof(global::CQReetMediator.Abstractions.IPostProcessorBehavior<,>), typeof({0}));",
+                                reg.HandlerType));
+                        else
+                            sb.AppendLine(string.Format(
+                                "            global::Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions.AddTransient<global::CQReetMediator.Abstractions.IPostProcessorBehavior<{0}, {1}>, {2}>(services);",
+                                reg.RequestType, reg.ResponseType, reg.HandlerType));
+                        break;
+                    case "PostB1":
+                        if (reg.IsOpenGeneric)
+                            sb.AppendLine(string.Format(
+                                "            global::Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions.AddTransient(services, typeof(global::CQReetMediator.Abstractions.IPostProcessorBehavior<>), typeof({0}));",
+                                reg.HandlerType));
+                        else
+                            sb.AppendLine(string.Format(
+                                "            global::Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions.AddTransient<global::CQReetMediator.Abstractions.IPostProcessorBehavior<{0}>, {1}>(services);",
+                                reg.RequestType, reg.HandlerType));
+                        break;
                 }
             }
 
             sb.AppendLine();
+
+            bool globalPre2 = distinct.Any(r => r.Kind == "PreB2" && r.IsOpenGeneric);
+            bool globalPre1 = distinct.Any(r => r.Kind == "PreB1" && r.IsOpenGeneric);
+            bool globalPipe2 = distinct.Any(r => r.Kind == "PB" && r.IsOpenGeneric);
+            bool globalPipe1 = distinct.Any(r => r.Kind == "VPB" && r.IsOpenGeneric);
+            bool globalPost2 = distinct.Any(r => r.Kind == "PostB2" && r.IsOpenGeneric);
+            bool globalPost1 = distinct.Any(r => r.Kind == "PostB1" && r.IsOpenGeneric);
 
             // --- Request wrappers ---
             var requestWrappers = distinct
@@ -219,11 +332,21 @@ namespace CQReetMediator.SourceGenerator
             sb.AppendLine(string.Format(
                 "            var requestWrappers = new global::System.Collections.Generic.Dictionary<global::System.Type, object>({0});",
                 requestWrappers.Count));
+
             foreach (var rw in requestWrappers)
             {
+                bool hasLocalPre = distinct.Any(r => r.Kind == "PreB2" && r.RequestType == rw.RequestType);
+                bool hasLocalPipe = distinct.Any(r => r.Kind == "PB" && r.RequestType == rw.RequestType);
+                bool hasLocalPost = distinct.Any(r => r.Kind == "PostB2" && r.RequestType == rw.RequestType);
+
+                bool finalPre = globalPre2 || hasLocalPre;
+                bool finalPipe = globalPipe2 || hasLocalPipe;
+                bool finalPost = globalPost2 || hasLocalPost;
+
                 sb.AppendLine(string.Format(
-                    "            requestWrappers[typeof({0})] = new global::CQReetMediator.RequestWrapper<{0}, {1}>();",
-                    rw.RequestType, rw.ResponseType));
+                    "            requestWrappers[typeof({0})] = new global::CQReetMediator.RequestWrapper<{0}, {1}>({2}, {3}, {4});",
+                    rw.RequestType, rw.ResponseType, finalPre.ToString().ToLower(), finalPipe.ToString().ToLower(),
+                    finalPost.ToString().ToLower()));
             }
 
             sb.AppendLine();
@@ -238,11 +361,21 @@ namespace CQReetMediator.SourceGenerator
             sb.AppendLine(string.Format(
                 "            var voidRequestWrappers = new global::System.Collections.Generic.Dictionary<global::System.Type, object>({0});",
                 voidWrappers.Count));
+
             foreach (var vw in voidWrappers)
             {
+                bool hasLocalPre = distinct.Any(r => r.Kind == "PreB1" && r.RequestType == vw.RequestType);
+                bool hasLocalPipe = distinct.Any(r => r.Kind == "VPB" && r.RequestType == vw.RequestType);
+                bool hasLocalPost = distinct.Any(r => r.Kind == "PostB1" && r.RequestType == vw.RequestType);
+
+                bool finalPre = globalPre1 || hasLocalPre;
+                bool finalPipe = globalPipe1 || hasLocalPipe;
+                bool finalPost = globalPost1 || hasLocalPost;
+
                 sb.AppendLine(string.Format(
-                    "            voidRequestWrappers[typeof({0})] = new global::CQReetMediator.VoidRequestWrapper<{0}>();",
-                    vw.RequestType));
+                    "            voidRequestWrappers[typeof({0})] = new global::CQReetMediator.VoidRequestWrapper<{0}>({1}, {2}, {3});",
+                    vw.RequestType, finalPre.ToString().ToLower(), finalPipe.ToString().ToLower(),
+                    finalPost.ToString().ToLower()));
             }
 
             sb.AppendLine();
@@ -257,6 +390,7 @@ namespace CQReetMediator.SourceGenerator
             sb.AppendLine(string.Format(
                 "            var notificationWrappers = new global::System.Collections.Generic.Dictionary<global::System.Type, global::CQReetMediator.NotificationWrapperBase>({0});",
                 notifWrappers.Count));
+
             foreach (var nw in notifWrappers)
             {
                 sb.AppendLine(string.Format(

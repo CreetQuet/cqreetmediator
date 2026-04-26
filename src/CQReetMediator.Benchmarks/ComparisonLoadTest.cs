@@ -41,6 +41,7 @@ public static class ComparisonLoadTest {
         Console.WriteLine("Ready.\n");
 
         // --- TEST A: Direct Call ---
+        CleanMemory();
         Console.ForegroundColor = ConsoleColor.Yellow;
         Console.WriteLine($"[TEST A] Executing {ITERATIONS:N0} DIRECT calls...");
         Console.ResetColor();
@@ -52,6 +53,7 @@ public static class ComparisonLoadTest {
         PrintResult("Direct Call", swDirect.Elapsed, ITERATIONS);
 
         // --- TEST B: CQReetMediator ---
+        CleanMemory();
         Console.ForegroundColor = ConsoleColor.Yellow;
         Console.WriteLine($"\n[TEST B] Executing {ITERATIONS:N0} calls via CQReetMediator...");
         Console.ResetColor();
@@ -63,6 +65,7 @@ public static class ComparisonLoadTest {
         PrintResult("CQReetMediator", swCQReet.Elapsed, ITERATIONS);
 
         // --- TEST C: MediatR ---
+        CleanMemory();
         Console.ForegroundColor = ConsoleColor.Yellow;
         Console.WriteLine($"\n[TEST C] Executing {ITERATIONS:N0} calls via MediatR...");
         Console.ResetColor();
@@ -75,6 +78,12 @@ public static class ComparisonLoadTest {
 
         // --- Summary ---
         PrintSummary(swDirect.Elapsed, swCQReet.Elapsed, swMediatR.Elapsed);
+    }
+
+    private static void CleanMemory() {
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
     }
 
     private static void PrintResult(string name, TimeSpan elapsed, int count) {

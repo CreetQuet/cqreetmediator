@@ -1,5 +1,4 @@
 using System.Collections.Frozen;
-
 namespace CQReetMediator;
 
 public sealed class MediatorRegistry(

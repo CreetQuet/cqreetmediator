@@ -21,61 +21,77 @@
 
 ---
 
-## Features
+## ✨ Features
 
-| Capability | Description |
-|:---|:---|
-| **Zero-Allocation Hot Path** | 0 bytes when no pipelines are present. Sealed wrappers, no virtual dispatch overhead. |
-| **AOT-Ready** | No `System.Reflection` at runtime. All wrappers are pre-compiled at DI registration. `FrozenDictionary` for O(1) lookups. |
-| **Unified Task API** | Single `Task`-based contract. No `ValueTask`/`Task` duality. Clean, predictable async model. |
-| **Pipeline Behaviors** | Extensible interceptor chain for validation, logging, transactions, caching. Open generic support. |
-| **Strict CancellationToken** | `CancellationToken` propagated through every handler, pipeline, and notification dispatch. |
-| **Commands vs Queries vs Events** | `ICommand` / `ICommand<T>`, `IQuery` / `IQuery<T>`, `INotification` with clear semantic contracts. |
-| **Void Requests** | `IRequest`, `ICommand`, `IQuery` without return value. Full pipeline support. |
-| **Notifications** | Fire-and-forget event publishing with multiple sequential handlers. |
-| **Collection Queries** | `IReadOnlyList<T>`, `List<T>`, `T[]`, `IEnumerable<T>` as TResponse with zero overhead. |
+| Capability                        | Description                                                                                                                                                 |
+|:----------------------------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Zero-Allocation Hot Path**      | 0 bytes when no pipelines are present. Sealed wrappers, no virtual dispatch overhead.                                                                       |
+| **AOT-Ready**                     | No `System.Reflection` at runtime. All wrappers are pre-compiled at DI registration. A Source Generator analyzer is now used instead of `FrozenDictionary`. |
+| **Unified Task API**              | Single `Task`-based contract. No `ValueTask`/`Task` duality. Clean, predictable async model.                                                                |
+| **Pipeline Behaviors**            | Extensible interceptor chain for validation, logging, transactions, caching. Open generic support.                                                          |
+| **Strict CancellationToken**      | `CancellationToken` propagated through every handler, pipeline, and notification dispatch.                                                                  |
+| **Requests vs Events**            | `IRequest` / `IRequest<T>`, `INotification` with clear semantic contracts.                                                                                  |
+| **Void Requests**                 | `IRequest` without return value. Full pipeline support.                                                                                                     |
+| **Notifications**                 | Fire-and-forget event publishing with multiple sequential handlers.                                                                                         |
+| **Collection Queries**            | `IReadOnlyList<T>`, `List<T>`, `T[]`, `IEnumerable<T>` as TResponse with zero overhead.                                                                     |
 
 ---
 
-## Benchmarks
+## 📊 Benchmarks
 
 CQReetMediator is engineered to be as close to a direct method call as possible.
 
-| Scenario | Throughput | Latency (Avg) | Memory |
-|:---|:---|:---|:---|
-| **Direct Call (Baseline)** | ~60.2M req/s | 0.016 us | 0 B |
-| **CQReetMediator w/DI (Warm)** | ~5.3M req/s | 0.185 us | 64 B |
-| **CQReetMediator w/DI (Cold)** | ~3.1M req/s | 0.322 us | 64 B |
+### BenchmarkDotNet (Without Pipeline Behaviors)
 
-> 64 bytes comes from the DI container resolution, not the mediator.
+_Note: This is the raw performance of the mediator dispatching directly to the handler._
+
+| Method              | Mean      | Error     | StdDev    | Ratio | RatioSD | Rank | Gen0   | Allocated | Alloc Ratio |
+|-------------------- |----------:|----------:|----------:|------:|--------:|-----:|-------:|----------:|------------:|
+| DirectCall          |  3.336 ns | 0.0747 ns | 0.0623 ns |  1.00 |    0.03 |    1 | 0.0043 |      72 B |        1.00 |
+| CQReetMediator_Send | 27.216 ns | 0.2946 ns | 0.2755 ns |  8.16 |    0.17 |    2 | 0.0081 |     136 B |        1.89 |
+| MediatR_Send        | 51.597 ns | 0.7964 ns | 0.7450 ns | 15.47 |    0.35 |    3 | 0.0157 |     264 B |        3.67 |
+
+### BenchmarkDotNet (With Pipeline Behaviors)
+
+_Note: This benchmark includes the execution of Pipeline Behaviors to demonstrate performance with cross-cutting concerns enabled._
+
+| Method              | Mean      | Error     | StdDev    | Ratio | RatioSD | Rank | Gen0   | Allocated | Alloc Ratio |
+|-------------------- |----------:|----------:|----------:|------:|--------:|-----:|-------:|----------:|------------:|
+| DirectCall          |  3.692 ns | 0.1110 ns | 0.2293 ns |  1.00 |    0.09 |    1 | 0.0043 |      72 B |        1.00 |
+| CQReetMediator_Send | 54.460 ns | 1.1152 ns | 1.8937 ns | 14.81 |    1.03 |    2 | 0.0215 |     360 B |        5.00 |
+| MediatR_Send        | 96.041 ns | 1.5854 ns | 1.4054 ns | 26.11 |    1.62 |    3 | 0.0300 |     504 B |        7.00 |
+
+### Massive Load Test (1,000,000 concurrent requests)
+
+- **Throughput:** ~3.08M req/sec
+- **Average Latency:** 0.3239 us/req
 
 ---
 
-## Installation
+## 📦 Installation
 
 ```bash
 dotnet add package CQReetMediator
-dotnet add package CQReetMediator.DependencyInjection
 ```
 
 ---
 
-## Quick Start
+## 🚀 Quick Start
 
 ### 1. Define Requests
 
 ```csharp
 // Command with response
-public sealed record CreateUserCommand(string Name) : ICommand<Guid>;
+public sealed record CreateUserCommand(string Name) : IRequest<Guid>;
 
 // Void command
-public sealed record DeleteUserCommand(Guid Id) : ICommand;
+public sealed record DeleteUserCommand(Guid Id) : IRequest;
 
 // Query with response
-public sealed record GetUserQuery(Guid Id) : IQuery<UserDto>;
+public sealed record GetUserQuery(Guid Id) : IRequest<UserDto>;
 
 // Void query (health checks, warm-up, etc.)
-public sealed record WarmUpCacheQuery : IQuery;
+public sealed record WarmUpCacheQuery : IRequest;
 ```
 
 ### 2. Implement Handlers
@@ -83,13 +99,13 @@ public sealed record WarmUpCacheQuery : IQuery;
 All handlers return `Task`. No `ValueTask` ambiguity.
 
 ```csharp
-public sealed class CreateUserHandler : ICommandHandler<CreateUserCommand, Guid>
+public sealed class CreateUserHandler : IRequestHandler<CreateUserCommand, Guid>
 {
     public Task<Guid?> HandleAsync(CreateUserCommand request, CancellationToken ct)
         => Task.FromResult<Guid?>(Guid.NewGuid());
 }
 
-public sealed class DeleteUserHandler : ICommandHandler<DeleteUserCommand>
+public sealed class DeleteUserHandler : IRequestHandler<DeleteUserCommand>
 {
     public Task HandleAsync(DeleteUserCommand request, CancellationToken ct)
     {
@@ -98,7 +114,7 @@ public sealed class DeleteUserHandler : ICommandHandler<DeleteUserCommand>
     }
 }
 
-public sealed class GetUserHandler : IQueryHandler<GetUserQuery, UserDto>
+public sealed class GetUserHandler : IRequestHandler<GetUserQuery, UserDto>
 {
     public async Task<UserDto?> HandleAsync(GetUserQuery request, CancellationToken ct)
     {
@@ -113,7 +129,7 @@ public sealed class GetUserHandler : IQueryHandler<GetUserQuery, UserDto>
 Automatic assembly scanning registers all handlers, pipelines, and builds the optimized registry.
 
 ```csharp
-builder.Services.AddCQReetMediator(typeof(Program));
+builder.Services.AddCQReetMediator();
 ```
 
 ### 4. Use It
@@ -140,11 +156,19 @@ app.MapGet("/users/{id}", async (Guid id, IMediator mediator) =>
 
 ---
 
-## Pipeline Behaviors
+## 🧩 Pipeline Behaviors, Pre-Processors & Post-Processors
 
-Intercept requests for cross-cutting concerns. Pipelines are executed in registration order.
+Intercept requests for cross-cutting concerns. CQReetMediator supports 3 explicit stages:
 
-### With Response
+1. **Pre-Processors** (`IPreProcessorBehavior`): Run *before* any pipeline. Ideal for validation or setup.
+2. **Pipelines** (`IPipelineBehavior`): Wrap the handler execution using `next()`. Ideal for transaction scopes,
+   caching, or "around" logic.
+3. **Post-Processors** (`IPostProcessorBehavior`): Run *after* the pipeline and handler (if successful). Ideal for audit
+   logging or cleanup.
+
+All behaviors are executed in registration order and automatically discovered by the Source Generator.
+
+### Pipelines (Around)
 
 ```csharp
 public sealed class LoggingBehavior<TRequest, TResponse>
@@ -164,20 +188,32 @@ public sealed class LoggingBehavior<TRequest, TResponse>
 }
 ```
 
-### Void Pipeline
+### Pre-Processors (Before)
 
 ```csharp
-public sealed class AuditBehavior<TRequest>
-    : IPipelineBehavior<TRequest>
+public sealed class ValidationPreProcessor<TRequest>
+    : IPreProcessorBehavior<TRequest>
     where TRequest : IRequest
 {
-    public async Task InvokeAsync(
-        TRequest request,
-        RequestHandlerDelegate next,
-        CancellationToken ct)
+    public Task ProcessAsync(TRequest request, CancellationToken ct)
     {
-        Console.WriteLine($"[AUDIT] {typeof(TRequest).Name}");
-        await next();
+        // Run validation logic here, throw exception if invalid
+        return Task.CompletedTask;
+    }
+}
+```
+
+### Post-Processors (After)
+
+```csharp
+public sealed class AuditPostProcessor<TRequest, TResponse>
+    : IPostProcessorBehavior<TRequest, TResponse>
+    where TRequest : IRequest<TResponse>
+{
+    public Task ProcessAsync(TRequest request, TResponse? response, CancellationToken ct)
+    {
+        // Run audit logic here
+        return Task.CompletedTask;
     }
 }
 ```
@@ -188,14 +224,15 @@ public sealed class AuditBehavior<TRequest>
 // Open generic behaviors are auto-discovered by AddCQReetMediator
 // Or register manually:
 services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
-services.AddTransient(typeof(IPipelineBehavior<>), typeof(AuditBehavior<>));
+services.AddTransient(typeof(IPreProcessorBehavior<>), typeof(ValidationPreProcessor<>));
+services.AddTransient(typeof(IPostProcessorBehavior<,>), typeof(AuditPostProcessor<,>));
 
-services.AddCQReetMediator(typeof(Program));
+services.AddCQReetMediator();
 ```
 
 ---
 
-## Notifications
+## 📣 Notifications
 
 Publish domain events to multiple handlers. Handlers execute sequentially.
 
@@ -232,12 +269,12 @@ await mediator.PublishAsync(new UserCreatedEvent(userId));
 TResponse can be any collection type with zero additional overhead.
 
 ```csharp
-public sealed record GetAllUsersQuery : IQuery<IReadOnlyList<UserDto>>;
-public sealed record GetActiveIdsQuery : IQuery<int[]>;
-public sealed record GetTagsQuery : IQuery<IEnumerable<string>>;
+public sealed record GetAllUsersQuery : IRequest<IReadOnlyList<UserDto>>;
+public sealed record GetActiveIdsQuery : IRequest<int[]>;
+public sealed record GetTagsQuery : IRequest<IEnumerable<string>>;
 
 public sealed class GetAllUsersHandler
-    : IQueryHandler<GetAllUsersQuery, IReadOnlyList<UserDto>>
+    : IRequestHandler<GetAllUsersQuery, IReadOnlyList<UserDto>>
 {
     public Task<IReadOnlyList<UserDto>?> HandleAsync(
         GetAllUsersQuery query, CancellationToken ct)
@@ -249,6 +286,7 @@ public sealed class GetAllUsersHandler
 ```
 
 **Zero-Allocation Tips:**
+
 - Return arrays as `IReadOnlyList<T>` (arrays implement it natively, zero interface overhead)
 - Use `Array.Empty<T>()` for empty results
 - Avoid LINQ operators (`ToList`, `Select`, `Where`) in hot paths
@@ -262,7 +300,7 @@ public sealed class GetAllUsersHandler
 IMediator.SendAsync(request)
     |
     v
-MediatorRegistry (FrozenDictionary - O(1) lookup)
+MediatorRegistry (Source Generator - O(1) lookup)
     |
     v
 RequestWrapper<TRequest, TResponse> (sealed, pre-compiled at startup)
@@ -292,42 +330,39 @@ public interface IMediator
 
 ### Contracts
 
-| Interface | Purpose |
-|:---|:---|
-| `IRequest` | Void request marker |
-| `IRequest<TResponse>` | Request with response |
-| `ICommand` / `ICommand<T>` | Command semantics (write operations) |
-| `IQuery` / `IQuery<T>` | Query semantics (read operations) |
-| `INotification` | Domain event / notification |
+| Interface                  | Purpose                              |
+|:---------------------------|:-------------------------------------|
+| `IRequest`                 | Void request marker                  |
+| `IRequest<TResponse>`      | Request with response                |
+| `INotification`            | Domain event / notification          |
 
 ### Handlers
 
-| Interface | Signature |
-|:---|:---|
-| `IRequestHandler<TRequest>` | `Task HandleAsync(TRequest, CancellationToken)` |
-| `IRequestHandler<TRequest, TResponse>` | `Task<TResponse?> HandleAsync(TRequest, CancellationToken)` |
-| `ICommandHandler<TRequest>` | Alias for `IRequestHandler<TRequest>` where `TRequest : ICommand` |
-| `ICommandHandler<TRequest, TResponse>` | Alias for `IRequestHandler<TRequest, TResponse>` where `TRequest : ICommand<TResponse>` |
-| `IQueryHandler<TRequest>` | Alias for `IRequestHandler<TRequest>` where `TRequest : IQuery` |
-| `IQueryHandler<TRequest, TResponse>` | Alias for `IRequestHandler<TRequest, TResponse>` where `TRequest : IQuery<TResponse>` |
-| `INotificationHandler<TNotification>` | `Task HandleAsync(TNotification, CancellationToken)` |
+| Interface                              | Signature                                                                               |
+|:---------------------------------------|:----------------------------------------------------------------------------------------|
+| `IRequestHandler<TRequest>`            | `Task HandleAsync(TRequest, CancellationToken)`                                         |
+| `IRequestHandler<TRequest, TResponse>` | `Task<TResponse?> HandleAsync(TRequest, CancellationToken)`                             |
+| `INotificationHandler<TNotification>`  | `Task HandleAsync(TNotification, CancellationToken)`                                    |
 
-### Pipeline Behaviors
+### Pipeline Behaviors, Pre-Processors & Post-Processors
 
-| Interface | Signature |
-|:---|:---|
-| `IPipelineBehavior<TRequest>` | `Task InvokeAsync(TRequest, RequestHandlerDelegate, CancellationToken)` |
-| `IPipelineBehavior<TRequest, TResponse>` | `Task<TResponse?> InvokeAsync(TRequest, RequestHandlerDelegate<TResponse>, CancellationToken)` |
+| Interface                                     | Signature                                                                                      |
+|:----------------------------------------------|:-----------------------------------------------------------------------------------------------|
+| `IPipelineBehavior<TRequest>`                 | `Task InvokeAsync(TRequest, RequestHandlerDelegate, CancellationToken)`                        |
+| `IPipelineBehavior<TRequest, TResponse>`      | `Task<TResponse?> InvokeAsync(TRequest, RequestHandlerDelegate<TResponse>, CancellationToken)` |
+| `IPreProcessorBehavior<TRequest>`             | `Task ProcessAsync(TRequest, CancellationToken)`                                               |
+| `IPreProcessorBehavior<TRequest, TResponse>`  | `Task ProcessAsync(TRequest, CancellationToken)`                                               |
+| `IPostProcessorBehavior<TRequest>`            | `Task ProcessAsync(TRequest, CancellationToken)`                                               |
+| `IPostProcessorBehavior<TRequest, TResponse>` | `Task ProcessAsync(TRequest, TResponse?, CancellationToken)`                                   |
 
 ---
 
-## Repository Structure
+## 📁 Repository Structure
 
 ```
 /src
   CQReetMediator.Abstractions/            # Pure interfaces, zero dependencies
-  CQReetMediator/                          # Core: Mediator, Registry, Wrappers
-  CQReetMediator.DependencyInjection/      # DI extensions (Microsoft.Extensions.DI)
+  CQReetMediator/                          # Core: Mediator, Registry, Wrappers, DI
   CQReetMediator.Tests/                    # Unit tests
   CQReetMediator.DependencyInjection.Tests/ # Integration tests
   CQReetMediator.Benchmarks/              # Performance benchmarks
@@ -347,5 +382,6 @@ This project is licensed under the **MIT License**.
 
 If you find this library helpful or impressive,
 **please consider giving it a ⭐ on GitHub!**
-
 </div>
+
+---

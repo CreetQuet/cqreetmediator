@@ -5,8 +5,10 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace CQReetMediator.Benchmarks;
 
-public static class MassiveLoadTest {
-    public static async Task RunAsync() {
+public static class MassiveLoadTest
+{
+    public static async Task RunAsync()
+    {
         Console.ForegroundColor = ConsoleColor.Cyan;
         Console.WriteLine("=== STARTING MASSIVE LOAD TEST ===");
         Console.ResetColor();
@@ -27,8 +29,9 @@ public static class MassiveLoadTest {
         var tasks = new Task[requestCount];
         var sw = Stopwatch.StartNew();
 
-        for (int i = 0; i < requestCount; i++) {
-            tasks[i] = mediator.SendAsync(request);
+        for (int i = 0; i < requestCount; i++)
+        {
+            tasks[i] = Task.Run(() => mediator.SendAsync(request));
         }
 
         await Task.WhenAll(tasks);
@@ -47,6 +50,7 @@ public static class MassiveLoadTest {
 
 public record FastPing : IRequest<int>;
 
-public class FastPingHandler : IRequestHandler<FastPing, int> {
+public class FastPingHandler : IRequestHandler<FastPing, int>
+{
     public Task<int> HandleAsync(FastPing request, CancellationToken ct) => Task.FromResult(1);
 }

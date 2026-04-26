@@ -7,10 +7,10 @@ namespace CQReetMediator.DependencyInjection.Tests;
 public class CollectionQueryHandlerTests {
     #region Test Queries and Handlers
 
-    public record GetAllProductsQuery : IQuery<IReadOnlyList<ProductDto>>;
+    public record GetAllProductsQuery : IRequest<IReadOnlyList<ProductDto>>;
     public record ProductDto(int Id, string Name, decimal Price);
 
-    public class GetAllProductsHandler : IQueryHandler<GetAllProductsQuery, IReadOnlyList<ProductDto>> {
+    public class GetAllProductsHandler : IRequestHandler<GetAllProductsQuery, IReadOnlyList<ProductDto>> {
         public Task<IReadOnlyList<ProductDto>?> HandleAsync(GetAllProductsQuery query, CancellationToken ct) {
             ProductDto[] products = [
                 new(1, "Keyboard", 99.99m),
@@ -21,35 +21,35 @@ public class CollectionQueryHandlerTests {
         }
     }
 
-    public record GetCategoriesQuery : IQuery<List<string>>;
+    public record GetCategoriesQuery : IRequest<List<string>>;
 
-    public class GetCategoriesHandler : IQueryHandler<GetCategoriesQuery, List<string>> {
+    public class GetCategoriesHandler : IRequestHandler<GetCategoriesQuery, List<string>> {
         public Task<List<string>?> HandleAsync(GetCategoriesQuery query, CancellationToken ct) {
             var categories = new List<string> { "Electronics", "Clothing", "Books" };
             return Task.FromResult<List<string>?>(categories);
         }
     }
 
-    public record GetTagsQuery : IQuery<IEnumerable<string>>;
+    public record GetTagsQuery : IRequest<IEnumerable<string>>;
 
-    public class GetTagsHandler : IQueryHandler<GetTagsQuery, IEnumerable<string>> {
+    public class GetTagsHandler : IRequestHandler<GetTagsQuery, IEnumerable<string>> {
         public Task<IEnumerable<string>?> HandleAsync(GetTagsQuery query, CancellationToken ct) {
             IEnumerable<string> tags = new[] { "featured", "sale", "new" };
             return Task.FromResult<IEnumerable<string>?>(tags);
         }
     }
 
-    public record GetProductIdsQuery : IQuery<int[]>;
+    public record GetProductIdsQuery : IRequest<int[]>;
 
-    public class GetProductIdsHandler : IQueryHandler<GetProductIdsQuery, int[]> {
+    public class GetProductIdsHandler : IRequestHandler<GetProductIdsQuery, int[]> {
         public Task<int[]?> HandleAsync(GetProductIdsQuery query, CancellationToken ct)
             => Task.FromResult<int[]?>(new[] { 1, 2, 3, 4, 5 });
     }
 
-    public record GetOrdersQuery(int CustomerId) : IQuery<IReadOnlyList<OrderDto>>;
+    public record GetOrdersQuery(int CustomerId) : IRequest<IReadOnlyList<OrderDto>>;
     public record OrderDto(int Id, int CustomerId, decimal Total);
 
-    public class GetOrdersHandler : IQueryHandler<GetOrdersQuery, IReadOnlyList<OrderDto>> {
+    public class GetOrdersHandler : IRequestHandler<GetOrdersQuery, IReadOnlyList<OrderDto>> {
         public async Task<IReadOnlyList<OrderDto>?> HandleAsync(GetOrdersQuery query, CancellationToken ct) {
             await Task.Delay(1, ct);
             OrderDto[] orders = [
@@ -60,7 +60,7 @@ public class CollectionQueryHandlerTests {
         }
     }
 
-    public record GetCustomerNamesQuery : IQuery<List<string>>;
+    public record GetCustomerNamesQuery : IRequest<List<string>>;
 
     public class GetCustomerNamesHandler : IRequestHandler<GetCustomerNamesQuery, List<string>> {
         public async Task<List<string>?> HandleAsync(GetCustomerNamesQuery query, CancellationToken ct) {
@@ -69,27 +69,27 @@ public class CollectionQueryHandlerTests {
         }
     }
 
-    public record GetEmptyResultsQuery : IQuery<IReadOnlyList<string>>;
+    public record GetEmptyResultsQuery : IRequest<IReadOnlyList<string>>;
 
-    public class GetEmptyResultsHandler : IQueryHandler<GetEmptyResultsQuery, IReadOnlyList<string>> {
+    public class GetEmptyResultsHandler : IRequestHandler<GetEmptyResultsQuery, IReadOnlyList<string>> {
         public Task<IReadOnlyList<string>?> HandleAsync(GetEmptyResultsQuery query, CancellationToken ct)
             => Task.FromResult<IReadOnlyList<string>?>(Array.Empty<string>());
     }
 
-    public record GetProductCountQuery : IQuery<int>;
+    public record GetProductCountQuery : IRequest<int>;
 
-    public class GetProductCountHandler : IQueryHandler<GetProductCountQuery, int> {
+    public class GetProductCountHandler : IRequestHandler<GetProductCountQuery, int> {
         public Task<int> HandleAsync(GetProductCountQuery query, CancellationToken ct)
             => Task.FromResult(42);
     }
 
-    public record VoidQuery : IQuery;
+    public record VoidQuery : IRequest;
 
     public class VoidQuerySpy {
         public bool WasCalled { get; set; }
     }
 
-    public class VoidQueryHandler(VoidQuerySpy spy) : IQueryHandler<VoidQuery> {
+    public class VoidQueryHandler(VoidQuerySpy spy) : IRequestHandler<VoidQuery> {
         public Task HandleAsync(VoidQuery request, CancellationToken ct) {
             spy.WasCalled = true;
             return Task.CompletedTask;

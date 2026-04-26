@@ -18,13 +18,13 @@ public class AsyncHandler : IRequestHandler<AsyncRequest, string> {
     }
 }
 
-public record VoidCommand(string Msg) : ICommand;
+public record VoidCommand(string Msg) : IRequest;
 
 public class VoidCommandSpy {
     public string? LastMsg { get; set; }
 }
 
-public class VoidCommandHandler(VoidCommandSpy spy) : ICommandHandler<VoidCommand> {
+public class VoidCommandHandler(VoidCommandSpy spy) : IRequestHandler<VoidCommand> {
     public Task HandleAsync(VoidCommand request, CancellationToken ct) {
         spy.LastMsg = request.Msg;
         return Task.CompletedTask;
@@ -70,13 +70,13 @@ public class TestSpyPipeline<TRequest, TResponse>(PipelineSpy spy) : IPipelineBe
     }
 }
 
-public record VoidPipelineCommand : ICommand;
+public record VoidPipelineCommand : IRequest;
 
 public class VoidPipelineSpy {
     public bool WasCalled { get; set; }
 }
 
-public class VoidPipelineDummyHandler : ICommandHandler<VoidPipelineCommand> {
+public class VoidPipelineDummyHandler : IRequestHandler<VoidPipelineCommand> {
     public Task HandleAsync(VoidPipelineCommand request, CancellationToken ct)
         => Task.CompletedTask;
 }

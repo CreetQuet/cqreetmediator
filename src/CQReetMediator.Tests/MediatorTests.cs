@@ -54,6 +54,31 @@ public class MediatorCoreTests {
     }
 
     [Fact]
+    public async Task SendAsync_Should_Execute_Pre_And_Post_Processors() {
+        var preSpy = new PipelineSpy();
+        var postSpy = new PipelineSpy();
+        var container = new FakeServiceProvider();
+
+        container.Register(typeof(IRequestHandler<Ping, string>), new PingHandler());
+
+        var preInstance = new TestPreProcessor<Ping, string>(preSpy);
+        var pres = new List<IPreProcessorBehavior<Ping, string>> { preInstance };
+        container.Register(typeof(IEnumerable<IPreProcessorBehavior<Ping, string>>), pres);
+
+        var postInstance = new TestPostProcessor<Ping, string>(postSpy);
+        var posts = new List<IPostProcessorBehavior<Ping, string>> { postInstance };
+        container.Register(typeof(IEnumerable<IPostProcessorBehavior<Ping, string>>), posts);
+
+        var registry = CreateRegistry();
+        var mediator = new Mediator(container, registry);
+
+        await mediator.SendAsync(new Ping("With Processors"));
+
+        Assert.True(preSpy.Executed, "The pre-processor should have been executed");
+        Assert.True(postSpy.Executed, "The post-processor should have been executed");
+    }
+
+    [Fact]
     public async Task SendAsync_Should_Throw_If_Handler_Not_Registered_In_Container() {
         var container = new FakeServiceProvider();
 
