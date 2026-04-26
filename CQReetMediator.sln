@@ -4,13 +4,13 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CQReetMediator.Abstractions
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CQReetMediator", "src\CQReetMediator\CQReetMediator.csproj", "{96DCACA3-3ECF-44D4-8D0E-BCA6676D661F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CQReetMediator.DependencyInjection", "src\CQReetMediator.DependencyInjection\CQReetMediator.DependencyInjection.csproj", "{01D768A8-7B4D-4440-86CD-0EDB0A62FA7B}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CQReetMediator.Tests", "src\CQReetMediator.Tests\CQReetMediator.Tests.csproj", "{F45325CC-C7C3-4AE8-940B-1F2C5BEE4FE2}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CQReetMediator.DependencyInjection.Tests", "src\CQReetMediator.DependencyInjection.Tests\CQReetMediator.DependencyInjection.Tests.csproj", "{B1346E36-884E-43B3-8751-400F592C8A8D}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CQReetMediator.Benchmarks", "src\CQReetMediator.Benchmarks\CQReetMediator.Benchmarks.csproj", "{58D59128-B832-4BCF-9E8A-6176C5E8D0DE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CQReetMediator.SourceGenerator", "src\CQReetMediator.SourceGenerator\CQReetMediator.SourceGenerator.csproj", "{901A1C68-3AD8-49EB-AF88-7CFC276FDDB1}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -26,10 +26,6 @@ Global
 		{96DCACA3-3ECF-44D4-8D0E-BCA6676D661F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{96DCACA3-3ECF-44D4-8D0E-BCA6676D661F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{96DCACA3-3ECF-44D4-8D0E-BCA6676D661F}.Release|Any CPU.Build.0 = Release|Any CPU
-		{01D768A8-7B4D-4440-86CD-0EDB0A62FA7B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{01D768A8-7B4D-4440-86CD-0EDB0A62FA7B}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{01D768A8-7B4D-4440-86CD-0EDB0A62FA7B}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{01D768A8-7B4D-4440-86CD-0EDB0A62FA7B}.Release|Any CPU.Build.0 = Release|Any CPU
 		{F45325CC-C7C3-4AE8-940B-1F2C5BEE4FE2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{F45325CC-C7C3-4AE8-940B-1F2C5BEE4FE2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F45325CC-C7C3-4AE8-940B-1F2C5BEE4FE2}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -42,5 +38,9 @@ Global
 		{58D59128-B832-4BCF-9E8A-6176C5E8D0DE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{58D59128-B832-4BCF-9E8A-6176C5E8D0DE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{58D59128-B832-4BCF-9E8A-6176C5E8D0DE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{901A1C68-3AD8-49EB-AF88-7CFC276FDDB1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{901A1C68-3AD8-49EB-AF88-7CFC276FDDB1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{901A1C68-3AD8-49EB-AF88-7CFC276FDDB1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{901A1C68-3AD8-49EB-AF88-7CFC276FDDB1}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

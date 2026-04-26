@@ -1,189 +1,261 @@
-﻿using CQReetMediator.Abstractions;
+using System.Runtime.CompilerServices;
+using CQReetMediator.Abstractions;
 
 namespace CQReetMediator;
 
-/// <summary>
-/// Wrapper responsible for executing a specific synchronous request type (<see cref="ValueTask"/>).
-/// Handles resolution of the handler and execution of both sync and async pipelines.
-/// </summary>
-/// <typeparam name="TRequest">The type of the request.</typeparam>
-/// <typeparam name="TResponse">The type of the response.</typeparam>
-public class RequestWrapper<TRequest, TResponse> : RequestWrapperBase<TResponse>
-    where TRequest : IRequest<TResponse> {
-    
-    /// <summary>
-    /// Executes the request by resolving the handler and wrapping it in any registered pipeline behaviors.
-    /// </summary>
-    /// <param name="request">The request object (passed as object to match abstract base signature).</param>
-    /// <param name="provider">The service provider to resolve dependencies.</param>
-    /// <param name="ct">The cancellation token.</param>
-    /// <returns>A <see cref="ValueTask{TResponse}"/> containing the response.</returns>
-    /// <exception cref="InvalidOperationException">Thrown if the required handler is not found in the container.</exception>
-    public override ValueTask<TResponse?> Handle(
-        object request,
-        IServiceProvider provider,
-        CancellationToken ct
-    ) {
-        var typedRequest = (TRequest)request;
+public sealed class VoidRequestWrapper<TRequest> : RequestWrapperBase
+    where TRequest : class, IRequest
+{
+    private readonly bool _hasPre;
+    private readonly bool _hasPipe;
+    private readonly bool _hasPost;
+
+    public VoidRequestWrapper(bool hasPre, bool hasPipe, bool hasPost)
+    {
+        _hasPre = hasPre;
+        _hasPipe = hasPipe;
+        _hasPost = hasPost;
+    }
+
+    public override Task Handle(object request, IServiceProvider provider, CancellationToken ct)
+    {
+        var typedRequest = Unsafe.As<TRequest>(request);
+
+        var handlerObj = provider.GetService(typeof(IRequestHandler<TRequest>));
+        if (handlerObj is null)
+            throw new InvalidOperationException($"Handler not found for {typeof(TRequest).Name}");
+
+        var handler = Unsafe.As<IRequestHandler<TRequest>>(handlerObj);
+
+        if (!_hasPre && !_hasPipe && !_hasPost)
+        {
+            return handler.HandleAsync(typedRequest, ct);
+        }
+
+        if (!_hasPre && !_hasPost)
+        {
+            var behaviorsObj = provider.GetService(typeof(IEnumerable<IPipelineBehavior<TRequest>>));
+
+            if (behaviorsObj is IList<IPipelineBehavior<TRequest>> list && list.Count > 0)
+            {
+                RequestHandlerDelegate next = () => handler.HandleAsync(typedRequest, ct);
+                for (int i = list.Count - 1; i >= 0; i--)
+                {
+                    var behavior = list[i];
+                    var currentNext = next;
+                    next = () => behavior.InvokeAsync(typedRequest, currentNext, ct);
+                }
+
+                return next();
+            }
+
+            return handler.HandleAsync(typedRequest, ct);
+        }
+
+        return HandleWithAllBehaviorsAsync(typedRequest, handler, provider, ct);
+    }
+
+    private async Task HandleWithAllBehaviorsAsync(TRequest request, IRequestHandler<TRequest> handler,
+        IServiceProvider provider, CancellationToken ct)
+    {
+        if (_hasPre)
+        {
+            var preProcessors =
+                Unsafe.As<IEnumerable<IPreProcessorBehavior<TRequest>>>(
+                    provider.GetService(typeof(IEnumerable<IPreProcessorBehavior<TRequest>>)));
+            if (preProcessors is IList<IPreProcessorBehavior<TRequest>> preList)
+            {
+                for (int i = 0; i < preList.Count; i++)
+                    await preList[i].ProcessAsync(request, ct).ConfigureAwait(false);
+            }
+            else
+            {
+                foreach (var pre in preProcessors) await pre.ProcessAsync(request, ct).ConfigureAwait(false);
+            }
+        }
+
+        Task executionTask;
+        if (!_hasPipe)
+        {
+            executionTask = handler.HandleAsync(request, ct);
+        }
+        else
+        {
+            var behaviorsObj = provider.GetService(typeof(IEnumerable<IPipelineBehavior<TRequest>>));
+            if (behaviorsObj is IList<IPipelineBehavior<TRequest>> list && list.Count > 0)
+            {
+                RequestHandlerDelegate next = () => handler.HandleAsync(request, ct);
+                for (int i = list.Count - 1; i >= 0; i--)
+                {
+                    var behavior = list[i];
+                    var currentNext = next;
+                    next = () => behavior.InvokeAsync(request, currentNext, ct);
+                }
+
+                executionTask = next();
+            }
+            else
+            {
+                executionTask = handler.HandleAsync(request, ct);
+            }
+        }
+
+        await executionTask.ConfigureAwait(false);
+
+        if (_hasPost)
+        {
+            var postProcessors =
+                Unsafe.As<IEnumerable<IPostProcessorBehavior<TRequest>>>(
+                    provider.GetService(typeof(IEnumerable<IPostProcessorBehavior<TRequest>>)));
+            if (postProcessors is IList<IPostProcessorBehavior<TRequest>> postList)
+            {
+                for (int i = 0; i < postList.Count; i++)
+                    await postList[i].ProcessAsync(request, ct).ConfigureAwait(false);
+            }
+            else
+            {
+                foreach (var post in postProcessors) await post.ProcessAsync(request, ct).ConfigureAwait(false);
+            }
+        }
+    }
+}
+
+public sealed class RequestWrapper<TRequest, TResponse> : RequestWrapperBase<TResponse>
+    where TRequest : class, IRequest<TResponse>
+{
+    private readonly bool _hasPre;
+    private readonly bool _hasPipe;
+    private readonly bool _hasPost;
+
+    public RequestWrapper(bool hasPre, bool hasPipe, bool hasPost)
+    {
+        _hasPre = hasPre;
+        _hasPipe = hasPipe;
+        _hasPost = hasPost;
+    }
+
+    public override Task<TResponse?> Handle(object request, IServiceProvider provider, CancellationToken ct)
+    {
+        var typedRequest = Unsafe.As<TRequest>(request);
 
         var handlerObj = provider.GetService(typeof(IRequestHandler<TRequest, TResponse>));
-        if (handlerObj is not IRequestHandler<TRequest, TResponse> handler) {
+
+        if (handlerObj is null)
             throw new InvalidOperationException($"Handler not found for {typeof(TRequest).Name}");
-        }
 
-        var syncBehaviorsObj = provider.GetService(typeof(IEnumerable<IPipelineBehavior<TRequest, TResponse>>));
-        var asyncBehaviorsObj = provider.GetService(typeof(IEnumerable<IAsyncPipelineBehavior<TRequest, TResponse>>));
+        var handler = Unsafe.As<IRequestHandler<TRequest, TResponse>>(handlerObj);
 
-        bool hasSync = HasItems(syncBehaviorsObj);
-        bool hasAsync = HasItems(asyncBehaviorsObj);
-
-        if (!hasSync && !hasAsync) {
+        if (!_hasPre && !_hasPipe && !_hasPost)
+        {
             return handler.HandleAsync(typedRequest, ct);
         }
 
-        RequestHandlerDelegate<TResponse> executionPlan = () => handler.HandleAsync(typedRequest, ct);
+        if (!_hasPre && !_hasPost)
+        {
+            var behaviorsObj = provider.GetService(typeof(IEnumerable<IPipelineBehavior<TRequest, TResponse>>));
 
-        if (hasAsync && asyncBehaviorsObj is IList<IAsyncPipelineBehavior<TRequest, TResponse>> asyncList) {
-            for (int i = asyncList.Count - 1; i >= 0; i--) {
-                var behavior = asyncList[i];
-                var next = executionPlan;
-                executionPlan = () => {
-                    var taskResponse = behavior.InvokeAsync(typedRequest, () => next().AsTask(), ct);
-                    return new ValueTask<TResponse?>(taskResponse);
-                };
+            if (behaviorsObj is IList<IPipelineBehavior<TRequest, TResponse>> list && list.Count > 0)
+            {
+                RequestHandlerDelegate<TResponse> next = () => handler.HandleAsync(typedRequest, ct);
+                for (int i = list.Count - 1; i >= 0; i--)
+                {
+                    var behavior = list[i];
+                    var currentNext = next;
+                    next = () => behavior.InvokeAsync(typedRequest, currentNext, ct);
+                }
+
+                return next();
             }
-        } else if (hasAsync && asyncBehaviorsObj is IEnumerable<IAsyncPipelineBehavior<TRequest, TResponse>> asyncEnum) {
-            foreach (var behavior in asyncEnum.Reverse()) {
-                var next = executionPlan;
-                executionPlan = () => {
-                    var taskResponse = behavior.InvokeAsync(typedRequest, () => next().AsTask(), ct);
-                    return new ValueTask<TResponse?>(taskResponse);
-                };
-            }
-        }
 
-        if (hasSync && syncBehaviorsObj is IList<IPipelineBehavior<TRequest, TResponse>> syncList) {
-            for (int i = syncList.Count - 1; i >= 0; i--) {
-                var behavior = syncList[i];
-                var next = executionPlan;
-                executionPlan = () => behavior.InvokeAsync(typedRequest, next, ct);
-            }
-        } else if (hasSync && syncBehaviorsObj is IEnumerable<IPipelineBehavior<TRequest, TResponse>> syncEnum) {
-            foreach (var behavior in syncEnum.Reverse()) {
-                var next = executionPlan;
-                executionPlan = () => behavior.InvokeAsync(typedRequest, next, ct);
-            }
-        }
-
-        return executionPlan();
-    }
-
-    /// <summary>
-    /// Efficiently checks if a collection is null or empty without unnecessary enumeration.
-    /// </summary>
-    /// <param name="collectionObj">The collection object to check.</param>
-    /// <returns>True if the collection contains items; otherwise, false.</returns>
-    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
-    private static bool HasItems(object? collectionObj) {
-        if (collectionObj == null) return false;
-        if (collectionObj is System.Collections.ICollection c) return c.Count > 0;
-        return true;
-    }
-}
-
-/// <summary>
-/// Wrapper responsible for executing a specific asynchronous request type (<see cref="Task"/>).
-/// Handles resolution of the handler and execution of both sync and async pipelines.
-/// </summary>
-/// <typeparam name="TRequest">The type of the request.</typeparam>
-/// <typeparam name="TResponse">The type of the response.</typeparam>
-public class AsyncRequestWrapper<TRequest, TResponse> : AsyncRequestWrapperBase<TResponse>
-    where TRequest : IRequest<TResponse> {
-    public override Task<TResponse?> Handle(
-        object request,
-        IServiceProvider provider,
-        CancellationToken ct
-    ) {
-        var typedRequest = (TRequest)request;
-        var handlerObj = provider.GetService(typeof(IAsyncRequestHandler<TRequest, TResponse>));
-
-        if (handlerObj is not IAsyncRequestHandler<TRequest, TResponse> handler)
-            throw new InvalidOperationException($"Async Handler not found for {typeof(TRequest).Name}");
-
-        var syncBehaviorsObj = provider.GetService(typeof(IEnumerable<IPipelineBehavior<TRequest, TResponse>>));
-        var asyncBehaviorsObj = provider.GetService(typeof(IEnumerable<IAsyncPipelineBehavior<TRequest, TResponse>>));
-
-        bool hasSync = HasItems(syncBehaviorsObj);
-        bool hasAsync = HasItems(asyncBehaviorsObj);
-
-        if (!hasSync && !hasAsync) {
             return handler.HandleAsync(typedRequest, ct);
         }
 
-        RequestHandlerDelegateAsync<TResponse> executionPlan = () => handler.HandleAsync(typedRequest, ct);
-
-        if (hasSync && syncBehaviorsObj is IList<IPipelineBehavior<TRequest, TResponse>> syncList) {
-            for (int i = syncList.Count - 1; i >= 0; i--) {
-                var behavior = syncList[i];
-                var next = executionPlan;
-                executionPlan = () => {
-                    var vt = behavior.InvokeAsync(typedRequest, () => new ValueTask<TResponse?>(next()), ct);
-                    return vt.AsTask();
-                };
-            }
-        }
-
-        if (hasAsync && asyncBehaviorsObj is IList<IAsyncPipelineBehavior<TRequest, TResponse>> asyncList) {
-            for (int i = asyncList.Count - 1; i >= 0; i--) {
-                var behavior = asyncList[i];
-                var next = executionPlan;
-                executionPlan = () => behavior.InvokeAsync(typedRequest, next, ct);
-            }
-        }
-
-        return executionPlan();
+        return HandleWithAllBehaviorsAsync(typedRequest, handler, provider, ct);
     }
 
-    /// <summary>
-    /// Efficiently checks if a collection is null or empty without unnecessary enumeration.
-    /// </summary>
-    /// <param name="collectionObj">The collection object to check.</param>
-    /// <returns>True if the collection contains items; otherwise, false.</returns>
-    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
-    private static bool HasItems(object? collectionObj) {
-        if (collectionObj == null) return false;
-        if (collectionObj is System.Collections.ICollection c) return c.Count > 0;
-        return true;
+    private async Task<TResponse?> HandleWithAllBehaviorsAsync(TRequest request,
+        IRequestHandler<TRequest, TResponse> handler, IServiceProvider provider, CancellationToken ct)
+    {
+        if (_hasPre)
+        {
+            var preProcessors =
+                Unsafe.As<IEnumerable<IPreProcessorBehavior<TRequest, TResponse>>>(
+                    provider.GetService(typeof(IEnumerable<IPreProcessorBehavior<TRequest, TResponse>>)));
+            if (preProcessors is IList<IPreProcessorBehavior<TRequest, TResponse>> preList)
+            {
+                for (int i = 0; i < preList.Count; i++)
+                    await preList[i].ProcessAsync(request, ct).ConfigureAwait(false);
+            }
+            else
+            {
+                foreach (var pre in preProcessors) await pre.ProcessAsync(request, ct).ConfigureAwait(false);
+            }
+        }
+
+        Task<TResponse?> executionTask;
+        if (!_hasPipe)
+        {
+            executionTask = handler.HandleAsync(request, ct);
+        }
+        else
+        {
+            var behaviorsObj = provider.GetService(typeof(IEnumerable<IPipelineBehavior<TRequest, TResponse>>));
+            if (behaviorsObj is IList<IPipelineBehavior<TRequest, TResponse>> list && list.Count > 0)
+            {
+                RequestHandlerDelegate<TResponse> executionPlan = () => handler.HandleAsync(request, ct);
+                for (int i = list.Count - 1; i >= 0; i--)
+                {
+                    var behavior = list[i];
+                    var currentNext = executionPlan;
+                    executionPlan = () => behavior.InvokeAsync(request, currentNext, ct);
+                }
+
+                executionTask = executionPlan();
+            }
+            else
+            {
+                executionTask = handler.HandleAsync(request, ct);
+            }
+        }
+
+        var response = await executionTask.ConfigureAwait(false);
+
+        if (_hasPost)
+        {
+            var postProcessors =
+                Unsafe.As<IEnumerable<IPostProcessorBehavior<TRequest, TResponse>>>(
+                    provider.GetService(typeof(IEnumerable<IPostProcessorBehavior<TRequest, TResponse>>)));
+            if (postProcessors is IList<IPostProcessorBehavior<TRequest, TResponse>> postList)
+            {
+                for (int i = 0; i < postList.Count; i++)
+                    await postList[i].ProcessAsync(request, response, ct).ConfigureAwait(false);
+            }
+            else
+            {
+                foreach (var post in postProcessors)
+                    await post.ProcessAsync(request, response, ct).ConfigureAwait(false);
+            }
+        }
+
+        return response;
     }
 }
 
-/// <summary>
-/// Wrapper responsible for executing notifications.
-/// </summary>
-/// <typeparam name="TNotification">The type of the notification.</typeparam>
-public class NotificationWrapper<TNotification> : NotificationWrapperBase
-    where TNotification : INotification {
-    
-    /// <summary>
-    /// Executes all registered handlers for the given notification type sequentially.
-    /// </summary>
-    /// <param name="notification">The notification object.</param>
-    /// <param name="provider">The service provider.</param>
-    /// <param name="ct">The cancellation token.</param>
-    /// <returns>A <see cref="Task"/> representing the completion of all handlers.</returns>
-    public override async Task Handle(
-        INotification notification,
-        IServiceProvider provider,
-        CancellationToken ct
-    ) {
-        var typedNotification = (TNotification)notification;
-
+public sealed class NotificationWrapper<TNotification> : NotificationWrapperBase
+    where TNotification : class, INotification
+{
+    public override async Task Handle(INotification notification, IServiceProvider provider, CancellationToken ct)
+    {
+        var typedNotification = Unsafe.As<TNotification>(notification);
         var handlersObj = provider.GetService(typeof(IEnumerable<INotificationHandler<TNotification>>));
 
-        if (handlersObj is IEnumerable<INotificationHandler<TNotification>> handlers) {
-            foreach (var handler in handlers) {
-                await handler.HandleAsync(typedNotification, ct);
-            }
+        if (handlersObj is IList<INotificationHandler<TNotification>> list)
+        {
+            for (int i = 0; i < list.Count; i++) await list[i].HandleAsync(typedNotification, ct).ConfigureAwait(false);
+        }
+        else if (handlersObj is IEnumerable<INotificationHandler<TNotification>> handlers)
+        {
+            foreach (var handler in handlers) await handler.HandleAsync(typedNotification, ct).ConfigureAwait(false);
         }
     }
 }

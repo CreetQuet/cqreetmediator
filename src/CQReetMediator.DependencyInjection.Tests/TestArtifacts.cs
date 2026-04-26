@@ -1,19 +1,34 @@
-﻿using CQReetMediator.Abstractions;
+using CQReetMediator.Abstractions;
 
 namespace CQReetMediator.DependencyInjection.Tests;
 
 public record SyncRequest(string Msg) : IRequest<string>;
 
 public class SyncHandler : IRequestHandler<SyncRequest, string> {
-    public ValueTask<string?> HandleAsync(SyncRequest request, CancellationToken ct) 
-        => new($"Sync: {request.Msg}");
+    public Task<string?> HandleAsync(SyncRequest request, CancellationToken ct)
+        => Task.FromResult<string?>($"Sync: {request.Msg}");
 }
 
 public record AsyncRequest(string Msg) : IRequest<string>;
 
-public class AsyncHandler : IAsyncRequestHandler<AsyncRequest, string> {
-    public Task<string?> HandleAsync(AsyncRequest request, CancellationToken ct) 
-        => Task.FromResult($"Async: {request.Msg}");
+public class AsyncHandler : IRequestHandler<AsyncRequest, string> {
+    public async Task<string?> HandleAsync(AsyncRequest request, CancellationToken ct) {
+        await Task.Yield();
+        return $"Async: {request.Msg}";
+    }
+}
+
+public record VoidCommand(string Msg) : IRequest;
+
+public class VoidCommandSpy {
+    public string? LastMsg { get; set; }
+}
+
+public class VoidCommandHandler(VoidCommandSpy spy) : IRequestHandler<VoidCommand> {
+    public Task HandleAsync(VoidCommand request, CancellationToken ct) {
+        spy.LastMsg = request.Msg;
+        return Task.CompletedTask;
+    }
 }
 
 public record TestNotification(string Msg) : INotification;
@@ -39,7 +54,8 @@ public class NotifHandler2(NotificationSpy spy) : INotificationHandler<TestNotif
 public record PipelineRequest : IRequest<bool>;
 
 public class PipelineRequestDummyHandler : IRequestHandler<PipelineRequest, bool> {
-    public ValueTask<bool> HandleAsync(PipelineRequest request, CancellationToken ct) => new(true);
+    public Task<bool> HandleAsync(PipelineRequest request, CancellationToken ct)
+        => Task.FromResult(true);
 }
 
 public class PipelineSpy {
@@ -48,16 +64,27 @@ public class PipelineSpy {
 
 public class TestSpyPipeline<TRequest, TResponse>(PipelineSpy spy) : IPipelineBehavior<TRequest, TResponse>
     where TRequest : IRequest<TResponse> {
-    public async ValueTask<TResponse?> InvokeAsync(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken ct) {
+    public async Task<TResponse?> InvokeAsync(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken ct) {
         spy.WasCalled = true;
         return await next();
     }
 }
 
-public class TestSpyPipelineAsync<TRequest, TResponse>(PipelineSpy spy) : IAsyncPipelineBehavior<TRequest, TResponse>
-    where TRequest : IRequest<TResponse> {
-    public async Task<TResponse?> InvokeAsync(TRequest request, RequestHandlerDelegateAsync<TResponse> next, CancellationToken ct) {
+public record VoidPipelineCommand : IRequest;
+
+public class VoidPipelineSpy {
+    public bool WasCalled { get; set; }
+}
+
+public class VoidPipelineDummyHandler : IRequestHandler<VoidPipelineCommand> {
+    public Task HandleAsync(VoidPipelineCommand request, CancellationToken ct)
+        => Task.CompletedTask;
+}
+
+public class TestVoidSpyPipeline<TRequest>(VoidPipelineSpy spy) : IPipelineBehavior<TRequest>
+    where TRequest : IRequest {
+    public async Task InvokeAsync(TRequest request, RequestHandlerDelegate next, CancellationToken ct) {
         spy.WasCalled = true;
-        return await next();
+        await next();
     }
 }

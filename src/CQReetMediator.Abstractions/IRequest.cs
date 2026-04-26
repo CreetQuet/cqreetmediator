@@ -1,4 +1,4 @@
-﻿namespace CQReetMediator.Abstractions;
+namespace CQReetMediator.Abstractions;
 
 /// <summary>
 /// Represents a request without a return value in the Mediator/CQRS pattern
