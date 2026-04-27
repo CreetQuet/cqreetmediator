@@ -37,6 +37,9 @@ jobs:
 
       - name: Pack CQReetMediator.Abstractions
         run: dotnet pack src/CQReetMediator.Abstractions/CQReetMediator.Abstractions.csproj --configuration Release --no-build -p:PackageVersion=${{ steps.version.outputs.VERSION }} -o ./artifacts
+        
+      - name: Pack CQReetMediator.SourceGenerator
+        run: dotnet pack src/CQReetMediator.SourceGenerator/CQReetMediator.SourceGenerator.csproj --configuration Release --no-build -p:PackageVersion=${{ steps.version.outputs.VERSION }} -o ./artifacts
 
       - name: Publish to NuGet
         run: dotnet nuget push "./artifacts/*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate

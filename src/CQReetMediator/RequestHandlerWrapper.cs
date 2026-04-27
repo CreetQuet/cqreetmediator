@@ -1,10 +1,9 @@
-using System.Runtime.CompilerServices;
 using CQReetMediator.Abstractions;
 
 namespace CQReetMediator;
 
 public sealed class VoidRequestWrapper<TRequest> : RequestWrapperBase
-    where TRequest : class, IRequest
+    where TRequest : IRequest
 {
     private readonly bool _hasPre;
     private readonly bool _hasPipe;
@@ -19,13 +18,13 @@ public sealed class VoidRequestWrapper<TRequest> : RequestWrapperBase
 
     public override Task Handle(object request, IServiceProvider provider, CancellationToken ct)
     {
-        var typedRequest = Unsafe.As<TRequest>(request);
+        var typedRequest = (TRequest)request;
 
         var handlerObj = provider.GetService(typeof(IRequestHandler<TRequest>));
         if (handlerObj is null)
             throw new InvalidOperationException($"Handler not found for {typeof(TRequest).Name}");
 
-        var handler = Unsafe.As<IRequestHandler<TRequest>>(handlerObj);
+        var handler = (IRequestHandler<TRequest>)handlerObj;
 
         if (!_hasPre && !_hasPipe && !_hasPost)
         {
@@ -60,15 +59,13 @@ public sealed class VoidRequestWrapper<TRequest> : RequestWrapperBase
     {
         if (_hasPre)
         {
-            var preProcessors =
-                Unsafe.As<IEnumerable<IPreProcessorBehavior<TRequest>>>(
-                    provider.GetService(typeof(IEnumerable<IPreProcessorBehavior<TRequest>>)));
-            if (preProcessors is IList<IPreProcessorBehavior<TRequest>> preList)
+            var preProcessorsObj = provider.GetService(typeof(IEnumerable<IPreProcessorBehavior<TRequest>>));
+            if (preProcessorsObj is IList<IPreProcessorBehavior<TRequest>> preList)
             {
                 for (int i = 0; i < preList.Count; i++)
                     await preList[i].ProcessAsync(request, ct).ConfigureAwait(false);
             }
-            else
+            else if (preProcessorsObj is IEnumerable<IPreProcessorBehavior<TRequest>> preProcessors)
             {
                 foreach (var pre in preProcessors) await pre.ProcessAsync(request, ct).ConfigureAwait(false);
             }
@@ -104,15 +101,13 @@ public sealed class VoidRequestWrapper<TRequest> : RequestWrapperBase
 
         if (_hasPost)
         {
-            var postProcessors =
-                Unsafe.As<IEnumerable<IPostProcessorBehavior<TRequest>>>(
-                    provider.GetService(typeof(IEnumerable<IPostProcessorBehavior<TRequest>>)));
-            if (postProcessors is IList<IPostProcessorBehavior<TRequest>> postList)
+            var postProcessorsObj = provider.GetService(typeof(IEnumerable<IPostProcessorBehavior<TRequest>>));
+            if (postProcessorsObj is IList<IPostProcessorBehavior<TRequest>> postList)
             {
                 for (int i = 0; i < postList.Count; i++)
                     await postList[i].ProcessAsync(request, ct).ConfigureAwait(false);
             }
-            else
+            else if (postProcessorsObj is IEnumerable<IPostProcessorBehavior<TRequest>> postProcessors)
             {
                 foreach (var post in postProcessors) await post.ProcessAsync(request, ct).ConfigureAwait(false);
             }
@@ -121,7 +116,7 @@ public sealed class VoidRequestWrapper<TRequest> : RequestWrapperBase
 }
 
 public sealed class RequestWrapper<TRequest, TResponse> : RequestWrapperBase<TResponse>
-    where TRequest : class, IRequest<TResponse>
+    where TRequest : IRequest<TResponse>
 {
     private readonly bool _hasPre;
     private readonly bool _hasPipe;
@@ -136,14 +131,14 @@ public sealed class RequestWrapper<TRequest, TResponse> : RequestWrapperBase<TRe
 
     public override Task<TResponse?> Handle(object request, IServiceProvider provider, CancellationToken ct)
     {
-        var typedRequest = Unsafe.As<TRequest>(request);
+        var typedRequest = (TRequest)request;
 
         var handlerObj = provider.GetService(typeof(IRequestHandler<TRequest, TResponse>));
 
         if (handlerObj is null)
             throw new InvalidOperationException($"Handler not found for {typeof(TRequest).Name}");
 
-        var handler = Unsafe.As<IRequestHandler<TRequest, TResponse>>(handlerObj);
+        var handler = (IRequestHandler<TRequest, TResponse>)handlerObj;
 
         if (!_hasPre && !_hasPipe && !_hasPost)
         {
@@ -178,15 +173,13 @@ public sealed class RequestWrapper<TRequest, TResponse> : RequestWrapperBase<TRe
     {
         if (_hasPre)
         {
-            var preProcessors =
-                Unsafe.As<IEnumerable<IPreProcessorBehavior<TRequest, TResponse>>>(
-                    provider.GetService(typeof(IEnumerable<IPreProcessorBehavior<TRequest, TResponse>>)));
-            if (preProcessors is IList<IPreProcessorBehavior<TRequest, TResponse>> preList)
+            var preProcessorsObj = provider.GetService(typeof(IEnumerable<IPreProcessorBehavior<TRequest, TResponse>>));
+            if (preProcessorsObj is IList<IPreProcessorBehavior<TRequest, TResponse>> preList)
             {
                 for (int i = 0; i < preList.Count; i++)
                     await preList[i].ProcessAsync(request, ct).ConfigureAwait(false);
             }
-            else
+            else if (preProcessorsObj is IEnumerable<IPreProcessorBehavior<TRequest, TResponse>> preProcessors)
             {
                 foreach (var pre in preProcessors) await pre.ProcessAsync(request, ct).ConfigureAwait(false);
             }
@@ -222,15 +215,14 @@ public sealed class RequestWrapper<TRequest, TResponse> : RequestWrapperBase<TRe
 
         if (_hasPost)
         {
-            var postProcessors =
-                Unsafe.As<IEnumerable<IPostProcessorBehavior<TRequest, TResponse>>>(
-                    provider.GetService(typeof(IEnumerable<IPostProcessorBehavior<TRequest, TResponse>>)));
-            if (postProcessors is IList<IPostProcessorBehavior<TRequest, TResponse>> postList)
+            var postProcessorsObj =
+                provider.GetService(typeof(IEnumerable<IPostProcessorBehavior<TRequest, TResponse>>));
+            if (postProcessorsObj is IList<IPostProcessorBehavior<TRequest, TResponse>> postList)
             {
                 for (int i = 0; i < postList.Count; i++)
                     await postList[i].ProcessAsync(request, response, ct).ConfigureAwait(false);
             }
-            else
+            else if (postProcessorsObj is IEnumerable<IPostProcessorBehavior<TRequest, TResponse>> postProcessors)
             {
                 foreach (var post in postProcessors)
                     await post.ProcessAsync(request, response, ct).ConfigureAwait(false);
@@ -242,20 +234,37 @@ public sealed class RequestWrapper<TRequest, TResponse> : RequestWrapperBase<TRe
 }
 
 public sealed class NotificationWrapper<TNotification> : NotificationWrapperBase
-    where TNotification : class, INotification
+    where TNotification : INotification
 {
-    public override async Task Handle(INotification notification, IServiceProvider provider, CancellationToken ct)
+    public override Task Handle(INotification notification, IServiceProvider provider, CancellationToken ct)
     {
-        var typedNotification = Unsafe.As<TNotification>(notification);
+        var typedNotification = (TNotification)notification;
         var handlersObj = provider.GetService(typeof(IEnumerable<INotificationHandler<TNotification>>));
 
         if (handlersObj is IList<INotificationHandler<TNotification>> list)
         {
-            for (int i = 0; i < list.Count; i++) await list[i].HandleAsync(typedNotification, ct).ConfigureAwait(false);
+            if (list.Count == 0) return Task.CompletedTask;
+            if (list.Count == 1) return list[0].HandleAsync(typedNotification, ct);
+
+            return HandleMultipleAsync(list, typedNotification, ct);
         }
         else if (handlersObj is IEnumerable<INotificationHandler<TNotification>> handlers)
         {
-            foreach (var handler in handlers) await handler.HandleAsync(typedNotification, ct).ConfigureAwait(false);
+            return HandleMultipleEnumerableAsync(handlers, typedNotification, ct);
         }
+
+        return Task.CompletedTask;
+    }
+
+    private static async Task HandleMultipleAsync(IList<INotificationHandler<TNotification>> list, TNotification notif,
+        CancellationToken ct)
+    {
+        for (int i = 0; i < list.Count; i++) await list[i].HandleAsync(notif, ct).ConfigureAwait(false);
+    }
+
+    private static async Task HandleMultipleEnumerableAsync(IEnumerable<INotificationHandler<TNotification>> handlers,
+        TNotification notif, CancellationToken ct)
+    {
+        foreach (var handler in handlers) await handler.HandleAsync(notif, ct).ConfigureAwait(false);
     }
 }
