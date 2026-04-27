@@ -43,6 +43,8 @@ namespace CQReetMediator.SourceGenerator
             context.RegisterSourceOutput(collected, static (spc, regs) =>
             {
                 var source = Emit(regs);
+                if (source.Length == 0) return;
+
                 spc.AddSource("CQReetMediatorDependencyInjection.g.cs",
                     Microsoft.CodeAnalysis.Text.SourceText.From(source, Encoding.UTF8));
             });
@@ -211,6 +213,7 @@ namespace CQReetMediator.SourceGenerator
         private static string Emit(ImmutableArray<RegistrationInfo> registrations)
         {
             var distinct = registrations.Distinct().ToList();
+            if (distinct.Count == 0) return string.Empty;
 
             var sb = new StringBuilder(4096);
 
@@ -218,14 +221,14 @@ namespace CQReetMediator.SourceGenerator
             sb.AppendLine("#pragma warning disable");
             sb.AppendLine("#nullable enable");
             sb.AppendLine();
-            sb.AppendLine("namespace CQReetMediator.DependencyInjection");
+            sb.AppendLine("namespace CQReetMediator");
             sb.AppendLine("{");
             sb.AppendLine(
                 "    [global::System.CodeDom.Compiler.GeneratedCodeAttribute(\"CQReetMediator.SourceGenerator\", \"1.0.0\")]");
             sb.AppendLine("    public static class CQReetMediatorRegistration");
             sb.AppendLine("    {");
             sb.AppendLine(
-                "        internal static global::Microsoft.Extensions.DependencyInjection.IServiceCollection AddCQReetMediator(");
+                "        public static global::Microsoft.Extensions.DependencyInjection.IServiceCollection AddCQReetMediator(");
             sb.AppendLine(
                 "            this global::Microsoft.Extensions.DependencyInjection.IServiceCollection services)");
             sb.AppendLine("        {");

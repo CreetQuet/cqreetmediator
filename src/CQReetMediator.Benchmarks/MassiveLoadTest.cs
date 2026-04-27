@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using CQReetMediator.Abstractions;
-using CQReetMediator.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CQReetMediator.Benchmarks;
