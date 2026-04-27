@@ -409,7 +409,7 @@ namespace CQReetMediator.SourceGenerator
             sb.AppendLine(
                 "            global::Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions.AddSingleton(services, registry);");
             sb.AppendLine(
-                "            global::Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions.TryAddTransient<global::CQReetMediator.Abstractions.IMediator, global::CQReetMediator.Mediator>(services);");
+                "            global::Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions.AddTransient<global::CQReetMediator.Abstractions.IMediator, global::CQReetMediator.Mediator>(services);");
             sb.AppendLine();
             sb.AppendLine("            return services;");
             sb.AppendLine("        }");
