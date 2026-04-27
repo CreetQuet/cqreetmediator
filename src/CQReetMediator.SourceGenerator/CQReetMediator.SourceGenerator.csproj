@@ -10,7 +10,7 @@
         <DevelopmentDependency>true</DevelopmentDependency>
         <Authors>CreetQuet</Authors>
         <Description>Source Generator for CQReetMediator — zero-reflection, AOT-safe DI registration</Description>
-        <Version>3.0.2</Version>
+        <Version>3.0.3</Version>
         <RepositoryUrl>https://github.com/CreetQuet/cqreetmediator</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
     </PropertyGroup>
